@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>MIDI乐理学习键盘</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
 <style>
@@ -24,7 +24,6 @@
   --border:#ddd;
   --shadow:0 4px 16px rgba(0,0,0,0.08);
   --transition:0.22s cubic-bezier(0.4,0,0.2,1);
-  /* 节拍器DAW风格配色 */
   --metro-bg:#2a2a33;
   --metro-btn-bg:#3a3a45;
   --metro-btn-hover:#4a4a58;
@@ -32,6 +31,7 @@
   --metro-accent:#ff77bb;
   --metro-beat-on:#77eeaa;
   --metro-beat-strong:#ff77bb;
+  --key-scale: 1;
 }
 [data-theme="dark"]{
   --bg:#1a1423;
@@ -85,8 +85,6 @@ h1{
 }
 .theme-toggle:hover,.setting-toggle:hover{transform:scale(1.08);}
 
-
-/* ========== 节拍器 DAW风格 ========== */
 .metronome-panel{
   background:var(--metro-bg);
   border-radius:12px;
@@ -188,7 +186,6 @@ h1{
 }
 .bpm-arrow:hover{opacity:1;}
 
-
 .beat-indicators{
   display:flex;
   gap:6px;
@@ -211,7 +208,6 @@ h1{
   background:var(--metro-beat-strong);
   box-shadow:0 0 10px var(--metro-beat-strong);
 }
-
 
 .time-signature{
   display:flex;
@@ -236,8 +232,6 @@ h1{
   font-weight:700;
 }
 
-
-/* 设置弹窗 */
 .setting-modal-wrap{
   position:fixed;
   inset:0;
@@ -277,7 +271,6 @@ h1{
   font-size:0.88rem;
 }
 
-
 .panel{
   background:var(--bg-panel);
   border-radius:16px;
@@ -299,17 +292,21 @@ h1{
 }
 .staff-box{
   flex:1;
-  min-width:280px;
-  background:rgba(255,255,255,0.6);
+  min-width:320px;
+  background:rgba(255,255,255,0.7);
   border-radius:10px;
   padding:10px;
   display:flex;
   align-items:center;
   justify-content:center;
 }
+.staff-box.hidden{
+  display:none;
+}
 #staffCanvas{
   width:100%;
-  height:120px;
+  height:210px;
+  display:block;
 }
 .row{
   display:flex;
@@ -337,6 +334,12 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   min-height:2.2rem;
   color:var(--accent);
 }
+.interval-display{
+  font-size:1rem;
+  color:var(--accent-2);
+  margin-bottom:6px;
+  min-height:1.4rem;
+}
 .interval-text{
   font-size:0.95rem;
   color:var(--text-muted);
@@ -345,18 +348,20 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
 }
 .inversion-hint{font-size:0.84rem;color:var(--danger);margin-top:4px;}
 
-
 .keyboard-wrap{
   overflow-x:auto;
+  overflow-y:hidden;
   padding:10px 4px 20px 4px;
+  touch-action: pan-x;
 }
 .keyboard{
   position:relative;
   height:220px;
   margin:0 auto;
+  transform-origin: left center;
 }
 .white{
-  width:28px;
+  width: calc(28px * var(--key-scale));
   height:220px;
   background:var(--white-key);
   border:1px solid var(--border);
@@ -375,7 +380,7 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   background:var(--chord-highlight) !important;
 }
 .black{
-  width:18px;
+  width: calc(18px * var(--key-scale));
   height:130px;
   background:var(--black-key);
   border-radius:0 0 5px 5px;
@@ -401,29 +406,26 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   pointer-events:none;
   color:#333;
 }
-/* 黑键音名强制白色 */
 .black .key-label{
   color:#ffffff;
 }
 [data-theme="dark"] .white .key-label{
   color:#22;
 }
-/* 转位音符红色边框标记 */
 .inversion-note{
   box-shadow: inset 0 0 0 2px var(--danger) !important;
 }
 
-
 @media(max-width:700px){
   .keyboard{height:160px;}
-  .white{width:22px;height:160px;}
-  .black{width:14px;height:95px;}
+  .white{height:160px;}
+  .black{height:95px;}
   h1{font-size:1.1rem;}
   #bpmInt{font-size:1.3rem;}
   #bpmDec{font-size:0.9rem;}
   .metro-btn{padding:6px 10px;}
   .info-panel{flex-direction:column;}
-  .staff-box{min-height:120px;}
+  .staff-box{min-height:160px;}
 }
 </style>
 </head>
@@ -436,8 +438,6 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   </div>
 </header>
 
-
-<!-- ========== 节拍器 ========== -->
 <div class="metronome-panel">
   <div class="metro-controls">
     <button class="metro-btn" id="playBtn" title="播放/暂停">▶</button>
@@ -454,14 +454,12 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
       </div>
     </div>
 
-
     <div class="beat-indicators" id="beatIndicators">
       <span class="beat-light"></span>
       <span class="beat-light"></span>
       <span class="beat-light"></span>
       <span class="beat-light"></span>
     </div>
-
 
     <div class="time-signature">
       <select id="tsNumerator">
@@ -483,8 +481,6 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   </div>
 </div>
 
-
-<!-- 设置弹窗 -->
 <div class="setting-modal-wrap" id="settingModalWrap">
   <div class="setting-modal">
     <div class="modal-header">
@@ -531,15 +527,27 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
           <option value="off">关闭</option>
         </select>
       </div>
+      <div class="setting-item">
+        <label>五线谱显示</label>
+        <select id="staffDisplaySetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>音程显示</label>
+        <select id="intervalDisplaySetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
     </div>
   </div>
 </div>
 
-
 <div class="panel info-panel">
   <div class="left-info">
     <div class="info-line">MIDI设备状态：<span id="midiStatus">未连接</span></div>
-    <div class="info-line">⚠️注意：直接file打开本地文件MIDI会被浏览器拦截，需要启动本地HTTP服务器</div>
     <div class="row">
       <label>MIDI设备：</label>
       <select id="midiDeviceSelect"></select>
@@ -555,14 +563,14 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
       </select>
     </div>
     <div class="chord-display" id="chordDisplay">音名 / 和弦：无</div>
-    <div class="interval-text" id="intervalDisplay"></div>
+    <div class="interval-display" id="intervalDisplay">音程：无</div>
+    <div class="interval-text" id="chordIntervalDisplay"></div>
     <div class="inversion-hint" id="inversionHint"></div>
   </div>
-  <div class="staff-box">
+  <div class="staff-box" id="staffBox">
     <canvas id="staffCanvas"></canvas>
   </div>
 </div>
-
 
 <div class="panel">
   <div class="row">
@@ -582,20 +590,19 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   </div>
 </div>
 
-
-<div class="keyboard-wrap">
+<div class="keyboard-wrap" id="keyboardWrap">
   <div class="keyboard" id="keyboardEl"></div>
 </div>
-
 
 <script>
 // ========== 常量定义 ==========
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const DEGREE_MAP = [0,0,1,1,2,3,3,4,4,5,5,6]; // 半音->音级（白键序号）
 const MIDI_MIN = 21;
 const MIDI_MAX = 108;
-const WHITE_KEY_WIDTH = 28;
-const BLACK_KEY_WIDTH = 18;
-
+let WHITE_KEY_WIDTH = 28;
+let BLACK_KEY_WIDTH = 18;
+const MIDDLE_C_MIDI = 60; // C4
 
 const CHORD_INTERVALS = {
   maj:[0,4,7],
@@ -616,7 +623,6 @@ const CHORD_INFO = {
   aug: { name: "增三和弦", intervals: ["根音", "大三度", "增五度"] }
 };
 
-
 const METRO_SOUNDS = {
   classic: { name: "经典嘀嗒", osc: "sine", strong: 1200, weak: 800 },
   wood: { name: "木鱼", osc: "triangle", strong: 600, weak: 400 },
@@ -624,6 +630,29 @@ const METRO_SOUNDS = {
   click: { name: "响板", osc: "square", strong: 2200, weak: 1600 }
 };
 
+// 时值定义
+const NOTE_VALUES = [
+  { name: "whole",     min: 1600, filled: false, stem: false, flags: 0 },
+  { name: "half",      min: 750,  filled: false, stem: true,  flags: 0 },
+  { name: "quarter",   min: 260,  filled: true,  stem: true,  flags: 0 },
+  { name: "eighth",    min: 110,  filled: true,  stem: true,  flags: 1 },
+  { name: "sixteenth", min: 0,    filled: true,  stem: true,  flags: 2 }
+];
+
+// 音程名称
+const INTERVAL_NAMES = [
+  "纯一度", "小二度", "大二度", "小三度", "大三度",
+  "纯四度", "增四度", "纯五度", "小六度", "大六度",
+  "小七度", "大七度", "纯八度"
+];
+
+// 五线谱常量
+const STAFF_LINE_SPACE = 11;
+const NOTE_HEAD_W = 9;
+const NOTE_HEAD_H = 6;
+const STEM_LEN = 26;
+const FLAG_GAP = 4;
+const PIXELS_PER_BEAT = 30;
 
 let synth;
 let metroSynth;
@@ -634,9 +663,8 @@ const tonePresets = {
   guitar:{type:'synth',oscillator:{type:'triangle'},envelope:{attack:0.05,decay:0.4,sustain:0.2,release:1.2}}
 };
 
-
 let state = {
-  activeNotes:new Set(),
+  activeNotes:new Map(),
   midiAccess:null,
   selectedMidiDevice:null,
   noteLabelMode:"all",
@@ -644,24 +672,29 @@ let state = {
   chordSoundEnabled:true,
   metroSound:"classic",
   mouseGlideEnabled:true,
+  staffEnabled:true,
+  intervalEnabled:true,
   isPlaying:false,
   tapTimes:[],
-  // 拖拽定时器
   intDragTimer:null,
   decDragTimer:null,
   intDragStep:1,
-  decDragStep:1
+  decDragStep:1,
+  staffOffset:0
 };
 
-// 鼠标按下状态（滑奏核心标记）
 let isMouseDown = false;
 
-// ========== 五线谱相关 ==========
+// ========== 五线谱 ==========
 let staffCanvas, staffCtx;
 let staffNotes = [];
-const STAFF_SPEED = 1.2; // 音符滚动速度
-const MIDDLE_C_MIDI = 60; // C4
-const STAFF_LINE_SPACE = 12; // 线间距像素
+let chordStaffNotes = [];
+
+let keyScale = 1;
+const MIN_SCALE = 0.6;
+const MAX_SCALE = 2.0;
+let touchStartDist = 0;
+let touchStartScale = 1;
 
 const $ = s=>document.querySelector(s);
 const midiStatusEl = $("#midiStatus");
@@ -670,13 +703,18 @@ const refreshMidiBtn = $("#refreshMidiBtn");
 const toneSelect = $("#toneSelect");
 const chordDisplay = $("#chordDisplay");
 const intervalDisplay = $("#intervalDisplay");
+const chordIntervalDisplay = $("#chordIntervalDisplay");
 const inversionHint = $("#inversionHint");
 const keyboardEl = $("#keyboardEl");
+const keyboardWrap = $("#keyboardWrap");
 const noteLabelModeSel = $("#noteLabelMode");
 const themeSettingSel = $("#themeSetting");
 const chordSoundSetting = $("#chordSoundSetting");
 const metroSoundSetting = $("#metroSoundSetting");
 const mouseGlideSetting = $("#mouseGlideSetting");
+const staffDisplaySetting = $("#staffDisplaySetting");
+const intervalDisplaySetting = $("#intervalDisplaySetting");
+const staffBox = $("#staffBox");
 const themeBtn = $("#themeBtn");
 const settingBtn = $("#settingBtn");
 const settingModalWrap = $("#settingModalWrap");
@@ -685,7 +723,6 @@ const chordRootSel = $("#chordRoot");
 const chordTypeSel = $("#chordType");
 const chordOctaveSel = $("#chordOctave");
 const showChordBtn = $("#showChordBtn");
-
 
 const playBtn = $("#playBtn");
 const stopBtn = $("#stopBtn");
@@ -711,7 +748,28 @@ function isBlackKey(midiNote){
   const n = midiNote%12;
   return [1,3,6,8,10].includes(n);
 }
+function getAccidental(midi){
+  const n = midi%12;
+  if([1,3,6,8,10].includes(n)) return "♯";
+  return "";
+}
+// 获取音级（用于五线谱垂直位置）
+function getDiatonicDegree(midi){
+  const octave = Math.floor(midi / 12) - 1;
+  const pc = midi % 12;
+  return octave * 7 + DEGREE_MAP[pc];
+}
 
+function calcIntervalName(midi1, midi2){
+  const semitones = Math.abs(midi1 - midi2);
+  const octaves = Math.floor(semitones / 12);
+  const remain = semitones % 12;
+  const baseName = INTERVAL_NAMES[remain];
+  
+  if(octaves === 0) return baseName;
+  if(remain === 0) return `${octaves}个纯八度`;
+  return `${octaves}个八度 + ${baseName}`;
+}
 
 function updateBpmDisplay(){
   const bpm = Tone.Transport.bpm.value;
@@ -721,16 +779,14 @@ function updateBpmDisplay(){
   bpmDecEl.textContent = decPart.toString().padStart(2, '0');
 }
 
-
 function setBpm(value){
   const clamped = Math.max(20, Math.min(300, value));
   Tone.Transport.bpm.value = clamped;
   updateBpmDisplay();
 }
 
-
-function detectChord(midiNoteSet){
-  const notes = Array.from(midiNoteSet).sort((a,b)=>a-b);
+function detectChord(midiNoteMap){
+  const notes = Array.from(midiNoteMap.keys()).sort((a,b)=>a-b);
   if(notes.length===0) return {display:"无",notes:notes,isInversion:false};
   if(notes.length===1){
     const info = midiToNote(notes[0]);
@@ -746,7 +802,8 @@ function detectChord(midiNoteSet){
           display:rootInfo.name + CHORD_INFO[key].name,
           notes:notes,
           isInversion:root!==notes[0],
-          rootMidi:root
+          rootMidi:root,
+          key:key
         }
       }
     }
@@ -754,7 +811,6 @@ function detectChord(midiNoteSet){
   const noteNames = notes.map(m=>midiToNote(m).full).join(",");
   return {display:`Add(${noteNames})`,notes:notes,isInversion:false};
 }
-
 
 function buildChordWithInversion(rootNoteName,octave,chordKey){
   const baseMidi = noteToMidi(rootNoteName,octave);
@@ -774,7 +830,6 @@ function buildChordWithInversion(rootNoteName,octave,chordKey){
   return {midiList: validMidis, isInversion, inversionNotes};
 }
 
-
 function renderKeyboard(){
   keyboardEl.innerHTML = "";
   let whiteKeyIndex = 0;
@@ -785,11 +840,11 @@ function renderKeyboard(){
     
     if(isBlackKey(midi)){
       div.classList.add("black");
-      const leftPos = whiteKeyIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
+      const leftPos = whiteKeyIndex * WHITE_KEY_WIDTH * keyScale - BLACK_KEY_WIDTH * keyScale / 2;
       div.style.left = `${leftPos}px`;
     }else{
       div.classList.add("white");
-      div.style.left = `${whiteKeyIndex * WHITE_KEY_WIDTH}px`;
+      div.style.left = `${whiteKeyIndex * WHITE_KEY_WIDTH * keyScale}px`;
       whiteKeyIndex++;
     }
     
@@ -797,7 +852,6 @@ function renderKeyboard(){
     label.classList.add("key-label");
     div.appendChild(label);
 
-    // ========== 滑奏核心逻辑 ==========
     div.addEventListener("mousedown", () => {
       isMouseDown = true;
       triggerNoteOn(midi);
@@ -816,17 +870,21 @@ function renderKeyboard(){
       }
     });
 
-    // 触摸事件
-    div.addEventListener("touchstart",e=>{e.preventDefault();triggerNoteOn(midi);});
-    div.addEventListener("touchend",e=>{e.preventDefault();triggerNoteOff(midi);});
+    div.addEventListener("touchstart",e=>{
+      e.preventDefault();
+      triggerNoteOn(midi);
+    });
+    div.addEventListener("touchend",e=>{
+      e.preventDefault();
+      triggerNoteOff(midi);
+    });
     
     keyboardEl.appendChild(div);
   }
   
-  keyboardEl.style.width = `${whiteKeyIndex * WHITE_KEY_WIDTH}px`;
+  keyboardEl.style.width = `${whiteKeyIndex * WHITE_KEY_WIDTH * keyScale}px`;
   updateKeyLabels();
 }
-
 
 function updateKeyLabels(){
   const allKeys = keyboardEl.querySelectorAll("[data-midi]");
@@ -843,13 +901,11 @@ function updateKeyLabels(){
   }
 }
 
-
 function setKeyActive(midi,active){
   const el = keyboardEl.querySelector(`[data-midi="${midi}"]`);
   if(!el) return;
   el.classList.toggle("active",active);
 }
-
 
 async function initSynth(presetKey){
   await Tone.start();
@@ -862,14 +918,12 @@ async function initSynth(presetKey){
   }
 }
 
-
 function initMetroSynth(){
   metroSynth = new Tone.Synth({
     oscillator:{ type: METRO_SOUNDS[state.metroSound].osc },
     envelope:{ attack:0.001, decay:0.08, sustain:0, release:0.08 }
   }).toDestination();
 }
-
 
 function onBeat(time){
   const pos = Tone.Transport.position;
@@ -888,7 +942,6 @@ function onBeat(time){
   }, time);
 }
 
-
 function updateBeatLights(currentBeat, totalBeats){
   const lights = beatIndicators.querySelectorAll(".beat-light");
   lights.forEach((light,i)=>{
@@ -904,29 +957,40 @@ function updateBeatLights(currentBeat, totalBeats){
   });
 }
 
-
 async function triggerNoteOn(midi){
   await Tone.start();
   const freq = Tone.Midi(midi).toFrequency();
   synth.triggerAttack(freq);
-  state.activeNotes.add(midi);
+  state.activeNotes.set(midi, performance.now());
   setKeyActive(midi,true);
   updateChordDisplay();
-
-  // 添加到五线谱
-  addStaffNote(midi);
+  updateIntervalDisplay();
+  
+  if(state.staffEnabled){
+    addStaffNote(midi);
+  }
 }
+
 function triggerNoteOff(midi){
   const freq = Tone.Midi(midi).toFrequency();
   synth.triggerRelease(freq);
+  
+  const startTime = state.activeNotes.get(midi);
+  if(startTime){
+    const duration = performance.now() - startTime;
+    finalizeStaffNote(midi, duration);
+  }
+  
   state.activeNotes.delete(midi);
   setKeyActive(midi,false);
   updateChordDisplay();
+  updateIntervalDisplay();
 }
 
-// 停止所有正在发声的音符
 function stopAllNotes(){
-  state.activeNotes.forEach(midi => {
+  state.activeNotes.forEach((startTime, midi) => {
+    const duration = performance.now() - startTime;
+    finalizeStaffNote(midi, duration);
     triggerNoteOff(midi);
   });
 }
@@ -935,10 +999,34 @@ function updateChordDisplay(){
   const res = detectChord(state.activeNotes);
   chordDisplay.textContent = `音名 / 和弦：${res.display}`;
   inversionHint.textContent = res.isInversion?"⚠️ 当前为转位和弦":"";
+  
+  if(res.key && CHORD_INFO[res.key]){
+    const info = CHORD_INFO[res.key];
+    chordIntervalDisplay.textContent = `构成：${info.intervals.join(" + ")}`;
+  }else{
+    chordIntervalDisplay.textContent = "";
+  }
+}
+
+function updateIntervalDisplay(){
+  if(!state.intervalEnabled){
+    intervalDisplay.textContent = "";
+    return;
+  }
+  
+  const notes = Array.from(state.activeNotes.keys()).sort((a,b)=>a-b);
+  if(notes.length === 2){
+    const name = calcIntervalName(notes[0], notes[1]);
+    intervalDisplay.textContent = `音程：${name}`;
+  }else if(notes.length <= 1){
+    intervalDisplay.textContent = "音程：无";
+  }else{
+    intervalDisplay.textContent = `音程：多音（${notes.length}个）`;
+  }
 }
 
 
-// ========== 五线谱渲染 ==========
+// ========== 五线谱渲染（双谱表 乐理正确位置） ==========
 function initStaff(){
   staffCanvas = document.getElementById('staffCanvas');
   staffCtx = staffCanvas.getContext('2d');
@@ -950,87 +1038,297 @@ function initStaff(){
 function resizeStaff(){
   const box = staffCanvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
-  staffCanvas.width = box.clientWidth * dpr;
-  staffCanvas.height = box.clientHeight * dpr;
+  const cssWidth = box.clientWidth;
+  const cssHeight = 210;
+  
+  staffCanvas.width = cssWidth * dpr;
+  staffCanvas.height = cssHeight * dpr;
   staffCtx.scale(dpr, dpr);
-  staffCanvas.style.width = box.clientWidth + 'px';
-  staffCanvas.style.height = box.clientHeight + 'px';
+  staffCanvas.style.width = cssWidth + 'px';
+  staffCanvas.style.height = cssHeight + 'px';
 }
 
-function midiToStaffY(midi){
-  // 中央C(MIDI 60)对应下加一线，五线谱从上到下y递增
-  const canvasHeight = staffCanvas.clientHeight;
-  const centerY = canvasHeight / 2 + STAFF_LINE_SPACE * 2; // 第三线位置
-  const diff = midi - MIDDLE_C_MIDI;
-  return centerY - diff * (STAFF_LINE_SPACE / 2);
+function getStaffInfo(){
+  const w = staffCanvas.clientWidth;
+  const h = 210;
+  const gap = 20;
+  const totalHeight = h - gap;
+  const singleHeight = totalHeight / 2;
+  
+  const trebleTopY = 10;
+  const bassTopY = singleHeight + gap;
+  
+  // 基准：高音谱号第二线=G4(MIDI67)；低音谱号第四线=F3(MIDI53)
+  const trebleRefY = trebleTopY + 1 * STAFF_LINE_SPACE; // 第二线
+  const bassRefY = bassTopY + 3 * STAFF_LINE_SPACE; // 第四线
+  
+  return { w, h, gap, singleHeight, trebleTopY, bassTopY, trebleRefY, bassRefY };
+}
+
+function midiToStaffPos(midi){
+  const { trebleRefY, bassRefY } = getStaffInfo();
+  const degree = getDiatonicDegree(midi);
+  
+  if(midi >= MIDDLE_C_MIDI){
+    // 高音谱表：基准G4(degree=32)在第二线
+    const refDegree = 32;
+    const diff = degree - refDegree;
+    const y = trebleRefY - diff * (STAFF_LINE_SPACE / 2);
+    return {
+      clef: 'treble',
+      y: y,
+      ledgerBelow: diff <= -2 && diff % 2 === 0
+    };
+  }else{
+    // 低音谱表：基准F3(degree=24)在第四线
+    const refDegree = 24;
+    const diff = degree - refDegree;
+    const y = bassRefY - diff * (STAFF_LINE_SPACE / 2);
+    return {
+      clef: 'bass',
+      y: y,
+      ledgerAbove: diff >= 2 && diff % 2 === 0
+    };
+  }
+}
+
+function getNoteValue(duration){
+  for(const v of NOTE_VALUES){
+    if(duration >= v.min) return v;
+  }
+  return NOTE_VALUES[NOTE_VALUES.length-1];
 }
 
 function addStaffNote(midi){
+  const pos = midiToStaffPos(midi);
+  // 音符初始位置：画布75%处，按下立即可见
   staffNotes.push({
     midi: midi,
-    x: staffCanvas.clientWidth + 20,
-    y: midiToStaffY(midi),
-    isBlack: isBlackKey(midi)
+    x: staffCanvas.clientWidth * 0.75,
+    y: pos.y,
+    clef: pos.clef,
+    ledgerBelow: pos.ledgerBelow,
+    ledgerAbove: pos.ledgerAbove,
+    isBlack: isBlackKey(midi),
+    accidental: getAccidental(midi),
+    startTime: performance.now(),
+    duration: 0,
+    active: true,
+    value: null
   });
 }
 
-function renderStaff(){
-  const w = staffCanvas.clientWidth;
-  const h = staffCanvas.clientHeight;
-  staffCtx.clearRect(0, 0, w, h);
+function finalizeStaffNote(midi, duration){
+  for(let i = staffNotes.length - 1; i >= 0; i--){
+    const note = staffNotes[i];
+    if(note.midi === midi && note.active){
+      note.duration = duration;
+      note.active = false;
+      note.value = getNoteValue(duration);
+      break;
+    }
+  }
+}
 
-  const centerY = h / 2;
-  const topLineY = centerY - STAFF_LINE_SPACE * 2;
+function showChordOnStaff(midiList){
+  chordStaffNotes = [];
+  midiList.forEach(midi => {
+    const pos = midiToStaffPos(midi);
+    chordStaffNotes.push({
+      midi: midi,
+      x: staffCanvas.clientWidth * 0.5,
+      y: pos.y,
+      clef: pos.clef,
+      ledgerBelow: pos.ledgerBelow,
+      ledgerAbove: pos.ledgerAbove,
+      isBlack: isBlackKey(midi),
+      accidental: getAccidental(midi)
+    });
+  });
+  
+  setTimeout(()=>{
+    chordStaffNotes = [];
+  }, 2500);
+}
 
-  // 画五条线
-  staffCtx.strokeStyle = '#333';
+function drawStaffLines(){
+  const { w, trebleTopY, bassTopY, trebleRefY, bassRefY } = getStaffInfo();
+  
+  staffCtx.strokeStyle = '#222';
   staffCtx.lineWidth = 1;
+  
+  // 高音谱表五条线
   for(let i = 0; i < 5; i++){
-    const y = topLineY + i * STAFF_LINE_SPACE;
+    const y = trebleTopY + i * STAFF_LINE_SPACE;
     staffCtx.beginPath();
     staffCtx.moveTo(0, y);
     staffCtx.lineTo(w, y);
     staffCtx.stroke();
   }
-
-  // 画高音谱号（简化版）
-  staffCtx.font = '48px serif';
-  staffCtx.fillStyle = '#333';
+  
+  // 低音谱表五条线
+  for(let i = 0; i < 5; i++){
+    const y = bassTopY + i * STAFF_LINE_SPACE;
+    staffCtx.beginPath();
+    staffCtx.moveTo(0, y);
+    staffCtx.lineTo(w, y);
+    staffCtx.stroke();
+  }
+  
+  // 谱号
+  staffCtx.font = '42px serif';
+  staffCtx.fillStyle = '#222';
   staffCtx.textBaseline = 'middle';
-  staffCtx.fillText('𝄞', 10, centerY - 2);
+  staffCtx.fillText('𝄞', 4, trebleRefY);
+  staffCtx.fillText('𝄢', 6, bassRefY + 2);
+  
+  // 拍号（和节拍器联动）
+  const numerator = tsNumerator.value;
+  const denominator = tsDenominator.value;
+  staffCtx.font = 'bold 16px sans-serif';
+  staffCtx.textAlign = 'center';
+  // 高音谱表拍号
+  staffCtx.fillText(numerator, 40, trebleRefY - STAFF_LINE_SPACE - 1);
+  staffCtx.fillText(denominator, 40, trebleRefY + STAFF_LINE_SPACE + 1);
+  // 低音谱表拍号
+  staffCtx.fillText(numerator, 40, bassRefY - STAFF_LINE_SPACE - 1);
+  staffCtx.fillText(denominator, 40, bassRefY + STAFF_LINE_SPACE + 1);
+  staffCtx.textAlign = 'left';
+}
 
-  // 更新并绘制音符
+function drawBarLines(){
+  const { w, trebleTopY, bassTopY } = getStaffInfo();
+  const beatsPerBar = parseInt(tsNumerator.value);
+  const barWidth = PIXELS_PER_BEAT * beatsPerBar;
+  const offset = state.staffOffset % barWidth;
+  
+  staffCtx.strokeStyle = '#222';
+  staffCtx.lineWidth = 1.2;
+  
+  for(let x = w - offset; x > 60; x -= barWidth){
+    // 高音谱表小节线
+    staffCtx.beginPath();
+    staffCtx.moveTo(x, trebleTopY);
+    staffCtx.lineTo(x, trebleTopY + 4 * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+    
+    // 低音谱表小节线
+    staffCtx.beginPath();
+    staffCtx.moveTo(x, bassTopY);
+    staffCtx.lineTo(x, bassTopY + 4 * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+  }
+}
+
+function drawNote(note){
+  staffCtx.save();
+  staffCtx.fillStyle = note.isBlack ? '#111' : '#222';
+  staffCtx.strokeStyle = note.isBlack ? '#111' : '#222';
+  staffCtx.lineWidth = 1.5;
+
+  const { trebleTopY, bassTopY } = getStaffInfo();
+  const midY = note.clef === 'treble' 
+    ? trebleTopY + 2 * STAFF_LINE_SPACE 
+    : bassTopY + 2 * STAFF_LINE_SPACE;
+  
+  const stemUp = note.y < midY;
+  const stemX = stemUp ? note.x + NOTE_HEAD_W - 1 : note.x - NOTE_HEAD_W + 1;
+  const stemY1 = note.y;
+  const stemY2 = stemUp ? note.y - STEM_LEN : note.y + STEM_LEN;
+
+  // 升降号
+  if(note.accidental){
+    staffCtx.font = '13px serif';
+    staffCtx.textBaseline = 'middle';
+    staffCtx.fillText(note.accidental, note.x - NOTE_HEAD_W - 10, note.y);
+  }
+
+  // 加线
+  if(note.ledgerBelow || note.ledgerAbove){
+    staffCtx.beginPath();
+    staffCtx.moveTo(note.x - NOTE_HEAD_W - 3, note.y);
+    staffCtx.lineTo(note.x + NOTE_HEAD_W + 3, note.y);
+    staffCtx.lineWidth = 1;
+    staffCtx.stroke();
+  }
+
+  // 符头
+  staffCtx.beginPath();
+  const filled = note.value ? note.value.filled : true;
+  if(filled){
+    staffCtx.ellipse(note.x, note.y, NOTE_HEAD_W, NOTE_HEAD_H, -0.25, 0, Math.PI * 2);
+    staffCtx.fill();
+  }else{
+    staffCtx.ellipse(note.x, note.y, NOTE_HEAD_W, NOTE_HEAD_H, -0.25, 0, Math.PI * 2);
+    staffCtx.stroke();
+  }
+
+  // 符干
+  const hasStem = note.value ? note.value.stem : true;
+  if(hasStem){
+    staffCtx.beginPath();
+    staffCtx.moveTo(stemX, stemY1);
+    staffCtx.lineTo(stemX, stemY2);
+    staffCtx.lineWidth = 1.5;
+    staffCtx.stroke();
+
+    // 符尾
+    const flags = note.value ? note.value.flags : 0;
+    if(flags > 0){
+      const flagX = stemUp ? stemX : stemX;
+      const flagStartY = stemUp ? stemY2 : stemY2;
+      const flagDir = stemUp ? 1 : -1;
+
+      for(let f = 0; f < flags; f++){
+        const fy = flagStartY + f * FLAG_GAP * flagDir;
+        staffCtx.beginPath();
+        staffCtx.moveTo(flagX, fy);
+        staffCtx.quadraticCurveTo(flagX + 9, fy + 2*flagDir, flagX + 2, fy + 6*flagDir);
+        staffCtx.lineWidth = 1.8;
+        staffCtx.stroke();
+      }
+    }
+  }
+
+  staffCtx.restore();
+}
+
+function renderStaff(){
+  if(!state.staffEnabled){
+    requestAnimationFrame(renderStaff);
+    return;
+  }
+
+  const { w, h } = getStaffInfo();
+  staffCtx.clearRect(0, 0, w, h);
+
+  drawStaffLines();
+  drawBarLines();
+
+  // 和弦演示音符
+  chordStaffNotes.forEach(note => {
+    drawNote(note);
+  });
+
+  // 演奏音符
   for(let i = staffNotes.length - 1; i >= 0; i--){
     const note = staffNotes[i];
-    note.x -= STAFF_SPEED;
+    note.x -= 0.8;
 
-    // 移出左边删除
-    if(note.x < -30){
+    if(note.x < -40){
       staffNotes.splice(i, 1);
       continue;
     }
 
-    // 画符头
-    staffCtx.beginPath();
-    staffCtx.fillStyle = note.isBlack ? '#222' : '#333';
-    staffCtx.ellipse(note.x, note.y, 7, 5, -0.2, 0, Math.PI * 2);
-    staffCtx.fill();
+    const value = note.active ? NOTE_VALUES[2] : note.value;
+    drawNote({...note, value});
+  }
 
-    // 画符干
-    staffCtx.beginPath();
-    staffCtx.strokeStyle = note.isBlack ? '#222' : '#333';
-    staffCtx.lineWidth = 1.5;
-    staffCtx.moveTo(note.x + 6, note.y);
-    staffCtx.lineTo(note.x + 6, note.y - 30);
-    staffCtx.stroke();
-
-    // 下加一线（中央C及以下）
-    if(note.midi <= MIDDLE_C_MIDI && (MIDDLE_C_MIDI - note.midi) % 2 === 0){
-      staffCtx.beginPath();
-      staffCtx.moveTo(note.x - 10, note.y);
-      staffCtx.lineTo(note.x + 10, note.y);
-      staffCtx.stroke();
-    }
+  // 播放时滚动
+  if(state.isPlaying){
+    const bpm = Tone.Transport.bpm.value;
+    const beatsPerSecond = bpm / 60;
+    state.staffOffset += beatsPerSecond * PIXELS_PER_BEAT / 60;
   }
 
   requestAnimationFrame(renderStaff);
@@ -1051,15 +1349,14 @@ function togglePlay(){
   }
 }
 
-
 function stopMetro(){
   Tone.Transport.stop();
   playBtn.textContent = "▶";
   state.isPlaying = false;
+  state.staffOffset = 0;
   const totalBeats = Tone.Transport.timeSignature[0];
   updateBeatLights(-1, totalBeats);
 }
-
 
 function handleTap(){
   const now = Date.now();
@@ -1087,7 +1384,7 @@ function handleTap(){
 }
 
 
-// ========== BPM整数部分拖拽（按住向上持续增加，向下持续减少）==========
+// ========== BPM拖拽 ==========
 function stopIntDrag(){
   if(state.intDragTimer){
     clearInterval(state.intDragTimer);
@@ -1097,13 +1394,11 @@ function stopIntDrag(){
   document.removeEventListener("mouseup", stopIntDrag);
 }
 
-
 function onIntMouseDown(e){
   if(e.button !== 0) return;
   e.preventDefault();
   const startY = e.clientY;
   let direction = 0;
-
 
   function onIntMouseMove(ev){
     const deltaY = startY - ev.clientY;
@@ -1112,7 +1407,6 @@ function onIntMouseDown(e){
     else direction = 0;
   }
 
-  // 拖拽速度：200毫秒变化一次
   state.intDragTimer = setInterval(()=>{
     if(direction !== 0){
       const cur = Tone.Transport.bpm.value;
@@ -1120,13 +1414,10 @@ function onIntMouseDown(e){
     }
   },200);
 
-
   document.addEventListener("mousemove", onIntMouseMove);
   document.addEventListener("mouseup", stopIntDrag);
 }
 
-
-// ========== BPM小数部分拖拽 ==========
 function stopDecDrag(){
   if(state.decDragTimer){
     clearInterval(state.decDragTimer);
@@ -1136,13 +1427,11 @@ function stopDecDrag(){
   document.removeEventListener("mouseup", stopDecDrag);
 }
 
-
 function onDecMouseDown(e){
   if(e.button !== 0) return;
   e.preventDefault();
   const startY = e.clientY;
   let direction = 0;
-
 
   function onDecMouseMove(ev){
     const deltaY = startY - ev.clientY;
@@ -1151,7 +1440,6 @@ function onDecMouseDown(e){
     else direction = 0;
   }
 
-  // 拖拽速度：200毫秒变化一次
   state.decDragTimer = setInterval(()=>{
     if(direction !== 0){
       const cur = Tone.Transport.bpm.value;
@@ -1159,13 +1447,12 @@ function onDecMouseDown(e){
     }
   },200);
 
-
   document.addEventListener("mousemove", onDecMouseMove);
   document.addEventListener("mouseup", stopDecDrag);
 }
 
 
-// ========== 双击手动输入 ==========
+// ========== 双击编辑BPM ==========
 function startBpmEdit(){
   const currentBpm = Tone.Transport.bpm.value.toFixed(2);
   
@@ -1210,7 +1497,7 @@ async function setupMidi(){
     fillMidiDeviceList();
     state.midiAccess.onstatechange = ()=>fillMidiDeviceList();
   }catch(e){
-    midiStatusEl.textContent = "MIDI被拒绝，file协议会直接禁用MIDI，请使用http服务器";
+    midiStatusEl.textContent = "MIDI权限被拒绝";
   }
 }
 function fillMidiDeviceList(){
@@ -1220,10 +1507,9 @@ function fillMidiDeviceList(){
     const opt = document.createElement("option");
     opt.value = input.id;
     opt.textContent = input.name;
-    midiDeviceSelect.append(opt);
+    midiDeviceSelect.appendChild(opt);
   }
 
-  // 自动连接第一个MIDI设备
   const inputs = Array.from(state.midiAccess.inputs.values());
   if(inputs.length > 0){
     midiDeviceSelect.value = inputs[0].id;
@@ -1269,14 +1555,57 @@ function applyTheme(mode){
 }
 
 
-// ========== 全局鼠标兜底事件 ==========
+// ========== 键盘缩放 ==========
+function getTouchDistance(touches){
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+keyboardWrap.addEventListener("touchstart", (e)=>{
+  if(e.touches.length === 2){
+    e.preventDefault();
+    touchStartDist = getTouchDistance(e.touches);
+    touchStartScale = keyScale;
+  }
+}, { passive: false });
+
+keyboardWrap.addEventListener("touchmove", (e)=>{
+  if(e.touches.length === 2){
+    e.preventDefault();
+    const currentDist = getTouchDistance(e.touches);
+    const ratio = currentDist / touchStartDist;
+    let newScale = touchStartScale * ratio;
+    newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    
+    if(Math.abs(newScale - keyScale) > 0.02){
+      keyScale = newScale;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      scrollToC4();
+    }
+  }
+}, { passive: false });
+
+keyboardWrap.addEventListener("touchend", ()=>{
+  touchStartDist = 0;
+});
+
+function scrollToC4(){
+  const keyEl = keyboardEl.querySelector(`[data-midi="${MIDDLE_C_MIDI}"]`);
+  if(!keyEl) return;
+  const wrapWidth = keyboardWrap.clientWidth;
+  const keyLeft = keyEl.offsetLeft;
+  keyboardWrap.scrollLeft = keyLeft - wrapWidth / 2 + WHITE_KEY_WIDTH * keyScale / 2;
+}
+
+
+// ========== 全局事件 ==========
 document.addEventListener('mouseup', () => {
   isMouseDown = false;
   stopAllNotes();
 });
-// 触摸抬起同理
 document.addEventListener('touchend', () => {
-  isMouseDown = false;
   stopAllNotes();
 });
 
@@ -1286,8 +1615,6 @@ playBtn.addEventListener("click", togglePlay);
 stopBtn.addEventListener("click", stopMetro);
 tapBtn.addEventListener("click", handleTap);
 
-
-//BPM上下箭头
 bpmUp.addEventListener("click",()=>{
   const current = Tone.Transport.bpm.value;
   const intPart = Math.floor(current);
@@ -1301,16 +1628,11 @@ bpmDown.addEventListener("click",()=>{
   setBpm(intPart - 1 + decPart);
 });
 
-
 bpmIntEl.addEventListener("mousedown", onIntMouseDown);
 bpmDecEl.addEventListener("mousedown", onDecMouseDown);
 
-
-//双击编辑
 document.querySelector(".bpm-num-group").addEventListener("dblclick", startBpmEdit);
 
-
-//拍号
 function updateTimeSignature(){
   const num = parseInt(tsNumerator.value);
   const den = parseInt(tsDenominator.value);
@@ -1320,8 +1642,6 @@ function updateTimeSignature(){
 tsNumerator.addEventListener("change", updateTimeSignature);
 tsDenominator.addEventListener("change", updateTimeSignature);
 
-
-//设置项
 noteLabelModeSel.addEventListener("change",e=>{
   state.noteLabelMode = e.target.value;
   updateKeyLabels();
@@ -1335,17 +1655,24 @@ metroSoundSetting.addEventListener("change",e=>{
     metroSynth.oscillator.type = METRO_SOUNDS[state.metroSound].osc;
   }
 });
-// 鼠标滑奏开关
 mouseGlideSetting.addEventListener("change",e=>{
   state.mouseGlideEnabled = e.target.value === "on";
   stopAllNotes();
 });
+staffDisplaySetting.addEventListener("change",e=>{
+  state.staffEnabled = e.target.value === "on";
+  staffBox.classList.toggle("hidden", !state.staffEnabled);
+});
+intervalDisplaySetting.addEventListener("change",e=>{
+  state.intervalEnabled = e.target.value === "on";
+  updateIntervalDisplay();
+});
+
 toneSelect.addEventListener("change",async e=>{
   await initSynth(e.target.value);
 });
 midiDeviceSelect.addEventListener("change",e=>attachMidiInput(e.target.value));
 refreshMidiBtn.addEventListener("click",setupMidi);
-
 
 themeBtn.addEventListener("click",()=>{
   const cur = document.documentElement.getAttribute("data-theme");
@@ -1359,7 +1686,6 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>
   if(state.themeMode==="system") applyTheme("system");
 });
 
-
 settingBtn.addEventListener("click",()=>{
   settingModalWrap.style.display="flex";
 });
@@ -1370,8 +1696,7 @@ settingModalWrap.addEventListener("click",(e)=>{
   if(e.target===settingModalWrap) settingModalWrap.style.display="none";
 });
 
-
-//和弦查询
+// 和弦查询
 function initChordSelectors(){
   chordRootSel.innerHTML = "";
   for(const n of NOTE_NAMES){
@@ -1386,9 +1711,8 @@ function initChordSelectors(){
     chordOctaveSel.appendChild(opt);
   }
   chordRootSel.value = "C";
-  chordOctaveSel.value = 5;
+  chordOctaveSel.value = 4;
 }
-
 
 showChordBtn.addEventListener("click",async ()=>{
   const root = chordRootSel.value;
@@ -1411,6 +1735,9 @@ showChordBtn.addEventListener("click",async ()=>{
     }
   });
 
+  if(state.staffEnabled){
+    showChordOnStaff(midiList);
+  }
 
   if(state.chordSoundEnabled){
     await Tone.start();
@@ -1424,7 +1751,7 @@ showChordBtn.addEventListener("click",async ()=>{
   const intervalStr = info.intervals.join(" + ");
   let text = `${root}${oct} ${info.name}：${intervalStr}`;
   if(isInversion) text += "（已自动转位，超出音域的音符已移低八度）";
-  intervalDisplay.textContent = text;
+  chordIntervalDisplay.textContent = text;
   inversionHint.textContent = isInversion?"⚠️ 红色边框标记为转位音符":"";
   
   setTimeout(()=>{
@@ -1439,7 +1766,7 @@ showChordBtn.addEventListener("click",async ()=>{
         synth.triggerRelease(freq);
       }
     });
-  },5000);
+  },2500);
 });
 
 
@@ -1450,13 +1777,15 @@ showChordBtn.addEventListener("click",async ()=>{
   chordSoundSetting.value = "on";
   metroSoundSetting.value = "classic";
   mouseGlideSetting.value = "on";
+  staffDisplaySetting.value = "on";
+  intervalDisplaySetting.value = "on";
   applyTheme(state.themeMode);
   renderKeyboard();
   initChordSelectors();
   
   await initSynth("piano");
   initMetroSynth();
-  initStaff(); // 初始化五线谱
+  initStaff();
   
   setBpm(120);
   Tone.Transport.timeSignature = [4,4];
@@ -1465,6 +1794,8 @@ showChordBtn.addEventListener("click",async ()=>{
   Tone.Transport.scheduleRepeat(onBeat, "4n");
   
   await setupMidi();
+
+  setTimeout(scrollToC4, 100);
 })();
 </script>
 </body>
