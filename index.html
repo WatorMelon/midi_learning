@@ -286,6 +286,31 @@ h1{
   box-shadow:var(--shadow);
   border:1px solid var(--border);
 }
+.info-panel{
+  display:flex;
+  gap:16px;
+  align-items:stretch;
+}
+.left-info{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.staff-box{
+  flex:1;
+  min-width:280px;
+  background:rgba(255,255,255,0.6);
+  border-radius:10px;
+  padding:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#staffCanvas{
+  width:100%;
+  height:120px;
+}
 .row{
   display:flex;
   gap:10px;
@@ -381,7 +406,7 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   color:#ffffff;
 }
 [data-theme="dark"] .white .key-label{
-  color:#222;
+  color:#22;
 }
 /* 转位音符红色边框标记 */
 .inversion-note{
@@ -397,6 +422,8 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
   #bpmInt{font-size:1.3rem;}
   #bpmDec{font-size:0.9rem;}
   .metro-btn{padding:6px 10px;}
+  .info-panel{flex-direction:column;}
+  .staff-box{min-height:120px;}
 }
 </style>
 </head>
@@ -509,26 +536,31 @@ button:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.12);}
 </div>
 
 
-<div class="panel">
-  <div class="info-line">MIDI设备状态：<span id="midiStatus">未连接</span></div>
-  <div class="info-line">⚠️注意：直接file打开本地文件MIDI会被浏览器拦截，需要启动本地HTTP服务器</div>
-  <div class="row">
-    <label>MIDI设备：</label>
-    <select id="midiDeviceSelect"></select>
-    <button id="refreshMidiBtn">刷新MIDI</button>
+<div class="panel info-panel">
+  <div class="left-info">
+    <div class="info-line">MIDI设备状态：<span id="midiStatus">未连接</span></div>
+    <div class="info-line">⚠️注意：直接file打开本地文件MIDI会被浏览器拦截，需要启动本地HTTP服务器</div>
+    <div class="row">
+      <label>MIDI设备：</label>
+      <select id="midiDeviceSelect"></select>
+      <button id="refreshMidiBtn">刷新MIDI</button>
+    </div>
+    <div class="row">
+      <label>音色选择：</label>
+      <select id="toneSelect">
+        <option value="piano">钢琴</option>
+        <option value="electric_piano">电钢琴</option>
+        <option value="synth">合成器</option>
+        <option value="guitar">吉他</option>
+      </select>
+    </div>
+    <div class="chord-display" id="chordDisplay">音名 / 和弦：无</div>
+    <div class="interval-text" id="intervalDisplay"></div>
+    <div class="inversion-hint" id="inversionHint"></div>
   </div>
-  <div class="row">
-    <label>音色选择：</label>
-    <select id="toneSelect">
-      <option value="piano">钢琴</option>
-      <option value="electric_piano">电钢琴</option>
-      <option value="synth">合成器</option>
-      <option value="guitar">吉他</option>
-    </select>
+  <div class="staff-box">
+    <canvas id="staffCanvas"></canvas>
   </div>
-  <div class="chord-display" id="chordDisplay">音名 / 和弦：无</div>
-  <div class="interval-text" id="intervalDisplay"></div>
-  <div class="inversion-hint" id="inversionHint"></div>
 </div>
 
 
@@ -624,6 +656,12 @@ let state = {
 // 鼠标按下状态（滑奏核心标记）
 let isMouseDown = false;
 
+// ========== 五线谱相关 ==========
+let staffCanvas, staffCtx;
+let staffNotes = [];
+const STAFF_SPEED = 1.2; // 音符滚动速度
+const MIDDLE_C_MIDI = 60; // C4
+const STAFF_LINE_SPACE = 12; // 线间距像素
 
 const $ = s=>document.querySelector(s);
 const midiStatusEl = $("#midiStatus");
@@ -759,26 +797,20 @@ function renderKeyboard(){
     label.classList.add("key-label");
     div.appendChild(label);
 
-    // ========== 滑奏核心逻辑修复 ==========
-    // 鼠标按下琴键
+    // ========== 滑奏核心逻辑 ==========
     div.addEventListener("mousedown", () => {
       isMouseDown = true;
       triggerNoteOn(midi);
     });
-    // 鼠标抬起琴键
     div.addEventListener("mouseup", () => {
       triggerNoteOff(midi);
     });
-    // 鼠标滑入琴键
     div.addEventListener("mouseenter", () => {
-      // 滑奏开启 + 鼠标按住 + 这个音还没响 → 触发
       if(state.mouseGlideEnabled && isMouseDown && !state.activeNotes.has(midi)){
         triggerNoteOn(midi);
       }
     });
-    // 鼠标滑出琴键
     div.addEventListener("mouseleave", () => {
-      // 滑奏开启 → 离开就停音
       if(state.mouseGlideEnabled){
         triggerNoteOff(midi);
       }
@@ -880,6 +912,9 @@ async function triggerNoteOn(midi){
   state.activeNotes.add(midi);
   setKeyActive(midi,true);
   updateChordDisplay();
+
+  // 添加到五线谱
+  addStaffNote(midi);
 }
 function triggerNoteOff(midi){
   const freq = Tone.Midi(midi).toFrequency();
@@ -900,6 +935,105 @@ function updateChordDisplay(){
   const res = detectChord(state.activeNotes);
   chordDisplay.textContent = `音名 / 和弦：${res.display}`;
   inversionHint.textContent = res.isInversion?"⚠️ 当前为转位和弦":"";
+}
+
+
+// ========== 五线谱渲染 ==========
+function initStaff(){
+  staffCanvas = document.getElementById('staffCanvas');
+  staffCtx = staffCanvas.getContext('2d');
+  resizeStaff();
+  window.addEventListener('resize', resizeStaff);
+  requestAnimationFrame(renderStaff);
+}
+
+function resizeStaff(){
+  const box = staffCanvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  staffCanvas.width = box.clientWidth * dpr;
+  staffCanvas.height = box.clientHeight * dpr;
+  staffCtx.scale(dpr, dpr);
+  staffCanvas.style.width = box.clientWidth + 'px';
+  staffCanvas.style.height = box.clientHeight + 'px';
+}
+
+function midiToStaffY(midi){
+  // 中央C(MIDI 60)对应下加一线，五线谱从上到下y递增
+  const canvasHeight = staffCanvas.clientHeight;
+  const centerY = canvasHeight / 2 + STAFF_LINE_SPACE * 2; // 第三线位置
+  const diff = midi - MIDDLE_C_MIDI;
+  return centerY - diff * (STAFF_LINE_SPACE / 2);
+}
+
+function addStaffNote(midi){
+  staffNotes.push({
+    midi: midi,
+    x: staffCanvas.clientWidth + 20,
+    y: midiToStaffY(midi),
+    isBlack: isBlackKey(midi)
+  });
+}
+
+function renderStaff(){
+  const w = staffCanvas.clientWidth;
+  const h = staffCanvas.clientHeight;
+  staffCtx.clearRect(0, 0, w, h);
+
+  const centerY = h / 2;
+  const topLineY = centerY - STAFF_LINE_SPACE * 2;
+
+  // 画五条线
+  staffCtx.strokeStyle = '#333';
+  staffCtx.lineWidth = 1;
+  for(let i = 0; i < 5; i++){
+    const y = topLineY + i * STAFF_LINE_SPACE;
+    staffCtx.beginPath();
+    staffCtx.moveTo(0, y);
+    staffCtx.lineTo(w, y);
+    staffCtx.stroke();
+  }
+
+  // 画高音谱号（简化版）
+  staffCtx.font = '48px serif';
+  staffCtx.fillStyle = '#333';
+  staffCtx.textBaseline = 'middle';
+  staffCtx.fillText('𝄞', 10, centerY - 2);
+
+  // 更新并绘制音符
+  for(let i = staffNotes.length - 1; i >= 0; i--){
+    const note = staffNotes[i];
+    note.x -= STAFF_SPEED;
+
+    // 移出左边删除
+    if(note.x < -30){
+      staffNotes.splice(i, 1);
+      continue;
+    }
+
+    // 画符头
+    staffCtx.beginPath();
+    staffCtx.fillStyle = note.isBlack ? '#222' : '#333';
+    staffCtx.ellipse(note.x, note.y, 7, 5, -0.2, 0, Math.PI * 2);
+    staffCtx.fill();
+
+    // 画符干
+    staffCtx.beginPath();
+    staffCtx.strokeStyle = note.isBlack ? '#222' : '#333';
+    staffCtx.lineWidth = 1.5;
+    staffCtx.moveTo(note.x + 6, note.y);
+    staffCtx.lineTo(note.x + 6, note.y - 30);
+    staffCtx.stroke();
+
+    // 下加一线（中央C及以下）
+    if(note.midi <= MIDDLE_C_MIDI && (MIDDLE_C_MIDI - note.midi) % 2 === 0){
+      staffCtx.beginPath();
+      staffCtx.moveTo(note.x - 10, note.y);
+      staffCtx.lineTo(note.x + 10, note.y);
+      staffCtx.stroke();
+    }
+  }
+
+  requestAnimationFrame(renderStaff);
 }
 
 
@@ -1136,7 +1270,6 @@ function applyTheme(mode){
 
 
 // ========== 全局鼠标兜底事件 ==========
-// 鼠标在页面任意位置抬起 → 重置状态+停止所有音
 document.addEventListener('mouseup', () => {
   isMouseDown = false;
   stopAllNotes();
@@ -1323,6 +1456,7 @@ showChordBtn.addEventListener("click",async ()=>{
   
   await initSynth("piano");
   initMetroSynth();
+  initStaff(); // 初始化五线谱
   
   setBpm(120);
   Tone.Transport.timeSignature = [4,4];
