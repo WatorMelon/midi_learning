@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>MIDI乐理学习键盘</title>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif;}
+:root{
+  --bg:#e8ff63cb;
+  --bg-panel:#ffffff;
+  --text:#222233;
+  --text-muted:#666;
+  --white-key:#ffffff;
+  --white-key-active:#ffd6ef;
+  --black-key:#222222;
+  --black-key-active:#b86baf;
+  --chord-highlight:#ffe066;
+  --chord-highlight-dark:#ffcc00;
+  --accent:#ff77bb;
+  --accent-2:#77aaff;
+  --danger:#ff6666;
+  --border:#ddd;
+  --shadow:0 4px 16px rgba(0,0,0,0.08);
+  --metro-bg:#2a2a33;
+  --metro-btn-bg:#3a3a45;
+  --metro-btn-hover:#4a4a58;
+  --metro-text:#f0f0f5;
+  --metro-accent:#ff77bb;
+  --key-scale: 1;
+}
+body.modal-open{
+  overflow: hidden;
+}
+[data-theme="dark"]{
+  --bg:#1a1423;
+  --bg-panel:#271f38;
+  --text:#f0edf7;
+  --text-muted:#aaa;
+  --white-key:#ffffff;
+  --white-key-active:#ffb8dd;
+  --black-key:#111111;
+  --black-key-active:#703868;
+  --border:#443858;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  transition:background 0.22s,color 0.22s;
+  padding:12px;
+}
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+  gap:10px;
+}
+h1{
+  font-size:1.4rem;
+  font-weight:600;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  -webkit-background-clip:text;
+  color:transparent;
+}
+.header-buttons{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.theme-toggle,.setting-toggle{
+  background:none;
+  border:none;
+  font-size:1.4rem;
+  cursor:pointer;
+  padding:6px 10px;
+  border-radius:10px;
+  background:var(--bg-panel);
+  box-shadow:var(--shadow);
+  transition:transform 0.2s;
+}
+.theme-toggle:hover,.setting-toggle:hover{transform:scale(1.08);}
+
+.metronome-panel{
+  background:var(--metro-bg);
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+  color:var(--metro-text);
+}
+.metro-controls{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.metro-btn{
+  background:var(--metro-btn-bg);
+  border:none;
+  color:var(--metro-text);
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:1rem;
+  transition:background 0.15s;
+  min-width:40px;
+  text-align:center;
+  user-select:none;
+}
+.metro-btn:hover{
+  background:var(--metro-btn-hover);
+}
+.tap-btn{
+  font-weight:600;
+  padding:8px 18px;
+}
+.bpm-display{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#1a1a22;
+  padding:4px 10px;
+  border-radius:6px;
+  border:1px solid #444;
+  user-select:none;
+}
+.bpm-num-group{
+  display:flex;
+  align-items:baseline;
+}
+#bpmInt{
+  font-size:1.6rem;
+  font-weight:700;
+  color:var(--metro-accent);
+  font-variant-numeric:tabular-nums;
+}
+.bpm-dot{
+  font-size:1.2rem;
+  color:var(--metro-accent);
+  margin:0 1px;
+}
+#bpmDec{
+  font-size:1rem;
+  font-weight:600;
+  color:var(--metro-accent);
+  font-variant-numeric:tabular-nums;
+  opacity:0.85;
+  min-width:22px;
+}
+.bpm-adjust{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.bpm-arrow{
+  background:none;
+  border:none;
+  color:var(--metro-text);
+  font-size:0.6rem;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  opacity:0.7;
+}
+.bpm-arrow:hover{opacity:1;}
+
+.bpm-input{
+  background: transparent;
+  border: 1px solid var(--metro-accent);
+  border-radius: 4px;
+  color: var(--metro-accent);
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  width: 110px;
+  outline: none;
+  text-align: center;
+  box-shadow: 0 0 0 2px rgba(255,119,187,0.15);
+}
+.bpm-input:focus{
+  box-shadow: 0 0 0 3px rgba(255,119,187,0.35);
+}
+
+.beat-indicators{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  height:30px;
+  margin-left:8px;
+}
+.beat-light{
+  width:6px;
+  height:24px;
+  background:#444;
+  border-radius:2px;
+  transition:all 0.08s ease;
+}
+.beat-light.active{
+  background:#77eeaa;
+  box-shadow:0 0 8px #77eeaa;
+}
+.beat-light.strong{
+  background:#ff77bb;
+  box-shadow:0 0 10px #ff77bb;
+}
+
+.time-signature{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin-left:auto;
+}
+.time-signature select{
+  background:var(--metro-btn-bg);
+  color:var(--metro-text);
+  border:none;
+  padding:6px 8px;
+  border-radius:6px;
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  width:50px;
+  text-align:center;
+}
+.ts-slash{
+  font-size:1.2rem;
+  font-weight:700;
+  color:var(--metro-text);
+}
+
+.setting-modal-wrap{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:none;
+  z-index:999;
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:30px;
+}
+.setting-modal-wrap.active{
+  display:flex;
+}
+.setting-modal{
+  background:var(--bg-panel);
+  border-radius:16px;
+  padding:18px;
+  width:360px;
+  max-width:92vw;
+  max-height:80vh;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  overscroll-behavior: contain;
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+  flex-shrink:0;
+}
+.modal-close{
+  border:none;background:transparent;font-size:1.3rem;cursor:pointer;
+  color:var(--text);
+}
+.settings-grid{
+  display:grid;
+  gap:12px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  flex:1;
+  padding-right:6px;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.settings-grid::-webkit-scrollbar{
+  display: none;
+}
+.setting-item{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:0.88rem;
+  flex-shrink:0;
+}
+.setting-item input[type="range"]{
+  width:100%;
+  height:6px;
+  cursor:pointer;
+}
+
+.panel{
+  background:var(--bg-panel);
+  border-radius:16px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+}
+.info-panel{
+  display:flex;
+  gap:16px;
+  align-items:stretch;
+}
+.left-info{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.staff-box{
+  flex:1;
+  min-width:320px;
+  background:rgba(255,255,255,0.7);
+  border-radius:10px;
+  padding:10px;
+}
+.staff-box.hidden{
+  display:none;
+}
+#staffCanvas{
+  width:100%;
+  height:210px;
+  display:block;
+}
+.row{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin:8px 0;
+}
+select,button{
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--bg-panel);
+  color:var(--text);
+  font-size:0.92rem;
+  transition:transform 0.15s;
+  cursor:pointer;
+}
+button:hover{transform:translateY(-1px);}
+.info-line{margin:6px 0;font-size:0.94rem;color:var(--text-muted);}
+.chord-display{
+  font-size:1.3rem;
+  font-weight:bold;
+  margin:10px 0 4px 0;
+  min-height:2.2rem;
+  color:var(--accent);
+}
+.interval-display{
+  font-size:1rem;
+  color:var(--accent-2);
+  margin-bottom:6px;
+  min-height:1.4rem;
+}
+
+/* 导航条 - 桌面端 */
+.keyboard-nav{
+  height:20px;
+  background:#2a2a33;
+  border-radius:6px 6px 0 0;
+  margin:0 4px;
+  position:relative;
+  overflow:hidden;
+  user-select:none;
+}
+.nav-viewport{
+  position:absolute;
+  top:2px;
+  bottom:2px;
+  background:rgba(255,255,255,0.25);
+  border:1px solid rgba(255,255,255,0.5);
+  border-radius:4px;
+  cursor:grab;
+  min-width:30px;
+}
+.nav-viewport:active{
+  cursor:grabbing;
+}
+.nav-handle{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:6px;
+  cursor:ew-resize;
+  background:rgba(255,255,255,0.6);
+  z-index:2;
+}
+.nav-handle-left{
+  left:0;
+  border-radius:3px 0 0 3px;
+}
+.nav-handle-right{
+  right:0;
+  border-radius:0 3px 3px 0;
+}
+
+.keyboard-wrap{
+  overflow-x:hidden;
+  overflow-y:hidden;
+  padding:0 4px 20px 4px;
+  background:#2a2a33;
+  border-radius:0 0 6px 6px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.keyboard{
+  position:relative;
+  height:220px;
+  margin:0 auto;
+  transform-origin: left center;
+}
+.white{
+  width: calc(28px * var(--key-scale));
+  height:220px;
+  background:var(--white-key);
+  border:1px solid var(--border);
+  border-radius:0 0 6px 6px;
+  position:absolute;
+  top:0;
+  cursor:pointer;
+  transition:background 0.12s ease;
+  z-index:1;
+  user-select:none;
+}
+.white.active{
+  background:var(--white-key-active);
+  transform:translateY(2px);
+}
+.white.chord-highlight{
+  background:var(--chord-highlight) !important;
+}
+.white.scale-key{
+  background: #f8faff;
+  border-color: #c5d4ff;
+}
+.black{
+  width: calc(18px * var(--key-scale));
+  height:130px;
+  background:var(--black-key);
+  border-radius:0 0 5px 5px;
+  position:absolute;
+  z-index:2;
+  top:0;
+  cursor:pointer;
+  transition:background 0.12s ease;
+  user-select:none;
+}
+.black.active{
+  background:var(--black-key-active);
+  transform:translateY(2px);
+}
+.black.chord-highlight{
+  background:var(--chord-highlight-dark) !important;
+}
+.black.scale-key{
+  background: #2a3142;
+  border:1px solid #556688;
+}
+.key-label{
+  position:absolute;
+  bottom:6px;
+  font-size:0.7rem;
+  text-align:center;
+  width:100%;
+  pointer-events:none;
+  color:#333;
+  user-select:none;
+}
+.black .key-label{
+  color:#ffffff;
+}
+
+/* ========== 手机竖屏适配 ========== */
+@media(max-width:700px){
+  body{padding:8px;}
+  h1{font-size:1.1rem;}
+  
+  /* 导航条加高加宽手柄，方便手指触摸 */
+  .keyboard-nav{
+    height:28px;
+  }
+  .nav-handle{
+    width:10px;
+  }
+  .nav-viewport{
+    min-width:40px;
+  }
+  
+  /* 键盘高度适配竖屏 */
+  .keyboard{
+    height:180px;
+  }
+  .white{
+    height:180px;
+  }
+  .black{
+    height:110px;
+  }
+  
+  .info-panel{flex-direction:column;}
+  .staff-box{min-height:160px;}
+  
+  .setting-modal{
+    width:280px;
+    max-height:75vh;
+  }
+}
+
+/* 超窄屏进一步优化 */
+@media(max-width:420px){
+  .keyboard-nav{
+    height:32px;
+  }
+  .nav-handle{
+    width:12px;
+  }
+  .keyboard{
+    height:160px;
+  }
+  .white{
+    height:160px;
+  }
+  .black{
+    height:95px;
+  }
+  .key-label{
+    font-size:0.6rem;
+  }
+}
+
+@media(orientation: portrait){
+  /* 竖屏专属优化 */
+  .keyboard-nav{
+    touch-action: pan-x;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎹 MIDI乐理学习键盘</h1>
+  <div class="header-buttons">
+    <button class="theme-toggle" id="themeBtn">🌙</button>
+    <button class="setting-toggle" id="settingBtn">⚙</button>
+  </div>
+</header>
+
+<div class="metronome-panel">
+  <div class="metro-controls">
+    <button class="metro-btn" id="playBtn">▶</button>
+    <button class="metro-btn" id="stopBtn">■</button>
+    <button class="metro-btn tap-btn" id="tapBtn">Tap</button>
+    
+    <div class="bpm-display">
+      <div class="bpm-num-group">
+        <span id="bpmInt">120</span><span class="bpm-dot">.</span><span id="bpmDec">00</span>
+      </div>
+      <div class="bpm-adjust">
+        <button class="bpm-arrow" id="bpmUp">▲</button>
+        <button class="bpm-arrow" id="bpmDown">▼</button>
+      </div>
+    </div>
+
+    <div class="beat-indicators" id="beatIndicators">
+      <span class="beat-light"></span>
+      <span class="beat-light"></span>
+      <span class="beat-light"></span>
+      <span class="beat-light"></span>
+    </div>
+
+    <div class="time-signature">
+      <select id="tsNumerator">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+      </select>
+      <span class="ts-slash">/</span>
+      <select id="tsDenominator">
+        <option value="2">2</option>
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+        <option value="16">16</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="setting-modal-wrap" id="settingModalWrap">
+  <div class="setting-modal">
+    <div class="modal-header">
+      <h3>⚙ 设置</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="settings-grid">
+      <div class="setting-item">
+        <label>音名显示模式</label>
+        <select id="noteLabelMode">
+          <option value="all">全部音名</option>
+          <option value="octaveOnly">仅八度名称</option>
+          <option value="off">不显示音名</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>主题模式</label>
+        <select id="themeSetting">
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>鼠标滑奏</label>
+        <select id="mouseGlideSetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>五线谱显示</label>
+        <select id="staffDisplaySetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>音程显示</label>
+        <select id="intervalDisplaySetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>键盘缩放</label>
+        <input type="range" id="keyScaleSlider" min="0.6" max="2.0" step="0.05" value="1">
+      </div>
+      <div class="setting-item">
+        <label>键盘根音</label>
+        <select id="rootNoteSelect">
+          <option value="0">C</option>
+          <option value="1">Db</option>
+          <option value="2">D</option>
+          <option value="3">Eb</option>
+          <option value="4">E</option>
+          <option value="5">F</option>
+          <option value="6">Gb</option>
+          <option value="7">G</option>
+          <option value="8">Ab</option>
+          <option value="9">A</option>
+          <option value="10">Bb</option>
+          <option value="11">B</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>中央八度</label>
+        <select id="octaveSelect">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>音阶/调式</label>
+        <select id="scaleSelect">
+          <option value="piano">Layout Piano (全键)</option>
+          <option value="major">Major 自然大调</option>
+          <option value="minor">Minor Natural 自然小调</option>
+          <option value="minorHarmonic">Minor Harmonic 和声小调</option>
+          <option value="minorMelodic">Minor Melodic 旋律小调</option>
+          <option value="majorPentatonic">Major Pentatonic 大调五声</option>
+          <option value="minorPentatonic">Minor Pentatonic 小调五声</option>
+          <option value="blues">Blues 布鲁斯</option>
+          <option value="dorian">Dorian 多利亚</option>
+          <option value="mixolydian">Mixolydian 混合利底亚</option>
+          <option value="lydian">Lydian 利底亚</option>
+          <option value="phrygian">Phrygian 弗里几亚</option>
+          <option value="locrian">Locrian 洛克里亚</option>
+          <option value="wholeTone">Whole Tone 全音</option>
+          <option value="diminished">Diminished 减音阶</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel info-panel">
+  <div class="left-info">
+    <div class="info-line">MIDI设备状态：<span id="midiStatus">未连接</span></div>
+    <div class="row">
+      <label>MIDI设备：</label>
+      <select id="midiDeviceSelect"></select>
+      <button id="refreshMidiBtn">刷新MIDI</button>
+    </div>
+    <div class="row">
+      <label>音色选择：</label>
+      <select id="toneSelect">
+        <option value="piano" selected>钢琴</option>
+        <option value="electric_piano">电钢琴</option>
+        <option value="synth">合成器</option>
+        <option value="guitar">吉他</option>
+      </select>
+    </div>
+    <div class="chord-display" id="chordDisplay">音名 / 和弦：无</div>
+    <div class="interval-display" id="intervalDisplay">音程：无</div>
+    <div class="interval-text" id="chordIntervalDisplay"></div>
+  </div>
+  <div class="staff-box" id="staffBox">
+    <canvas id="staffCanvas"></canvas>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <label>和弦查询：</label>
+    <select id="chordRoot"></select>
+    <select id="chordType">
+      <option value="maj">Major</option>
+      <option value="maj7">Major7</option>
+      <option value="min">Minor</option>
+      <option value="min7">Minor7</option>
+      <option value="7">Dominant7</option>
+      <option value="dim">Diminished</option>
+      <option value="aug">Augmented</option>
+    </select>
+    <select id="chordOctave"></select>
+    <button id="showChordBtn">显示和弦指法</button>
+  </div>
+</div>
+
+<!-- 导航条 -->
+<div class="keyboard-nav" id="keyboardNav">
+  <div class="nav-viewport" id="navViewport">
+    <div class="nav-handle nav-handle-left"></div>
+    <div class="nav-handle nav-handle-right"></div>
+  </div>
+</div>
+
+<div class="keyboard-wrap" id="keyboardWrap">
+  <div class="keyboard" id="keyboardEl"></div>
+</div>
+
+<script>
+// ========== 基础常量 ==========
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const DEGREE_MAP = [0,0,1,1,2,3,3,4,4,5,5,6];
+const MIDI_MIN = 21;
+const MIDI_MAX = 108;
+const WHITE_KEY_BASE = 28;
+const BLACK_KEY_BASE = 18;
+const MIDDLE_C_MIDI = 60;
+
+const CHORD_INTERVALS = {
+  maj:[0,4,7],
+  maj7:[0,4,7,11],
+  min:[0,3,7],
+  min7:[0,3,7,10],
+  7:[0,4,7,10],
+  dim:[0,3,6],
+  aug:[0,4,8]
+};
+const CHORD_INFO = {
+  maj: { name: "大三和弦", intervals: ["根音", "大三度", "纯五度"] },
+  maj7: { name: "大七和弦", intervals: ["根音", "大三度", "纯五度", "大七度"] },
+  min: { name: "小三和弦", intervals: ["根音", "小三度", "纯五度"] },
+  min7: { name: "小七和弦", intervals: ["根音", "小三度", "纯五度", "小七度"] },
+  7: { name: "属七和弦", intervals: ["根音", "大三度", "纯五度", "小七度"] },
+  dim: { name: "减三和弦", intervals: ["根音", "小三度", "减五度"] },
+  aug: { name: "增三和弦", intervals: ["根音", "大三度", "增五度"] }
+};
+
+const NOTE_VALUES = [
+  { name: "whole", min: 1600, filled: false, stem: false, flags: 0 },
+  { name: "half", min: 750, filled: false, stem: true, flags: 0 },
+  { name: "quarter", min: 260, filled: true, stem: true, flags: 0 },
+  { name: "eighth", min: 110, filled: true, stem: true, flags: 1 },
+  { name: "sixteenth", min: 0, filled: true, stem: true, flags: 2 }
+];
+
+const INTERVAL_NAMES = [
+  "纯一度", "小二度", "大二度", "小三度", "大三度",
+  "纯四度", "增四度", "纯五度", "小六度", "大六度",
+  "小七度", "大七度", "纯八度"
+];
+
+const SCALES = {
+  piano: [0,1,2,3,4,5,6,7,8,9,10,11],
+  major: [0,2,4,5,7,9,11],
+  minor: [0,2,3,5,7,8,10],
+  minorHarmonic: [0,2,3,5,7,8,11],
+  minorMelodic: [0,2,3,5,7,9,11],
+  majorPentatonic: [0,2,4,7,9],
+  minorPentatonic: [0,3,5,7,10],
+  blues: [0,3,5,6,7,10],
+  dorian: [0,2,3,5,7,9,10],
+  mixolydian: [0,2,4,5,7,9,10],
+  lydian: [0,2,4,6,7,9,11],
+  phrygian: [0,1,3,5,7,8,10],
+  locrian: [0,1,3,5,6,8,10],
+  wholeTone: [0,2,4,6,8,10],
+  diminished: [0,2,3,5,6,8,9,11]
+};
+
+// FL Studio 完整键盘映射
+const KEY_MAP = {
+  'KeyZ': 0,   'KeyS': 1,
+  'KeyX': 2,   'KeyD': 3,
+  'KeyC': 4,
+  'KeyV': 5,   'KeyF': 6,
+  'KeyB': 7,   'KeyH': 8,
+  'KeyN': 9,   'KeyJ': 10,
+  'KeyM': 11,
+  'KeyQ': 12,  'Digit2': 13,
+  'KeyW': 14,  'Digit3': 15,
+  'KeyE': 16,
+  'KeyR': 17,  'Digit5': 18,
+  'KeyT': 19,  'Digit6': 20,
+  'KeyY': 21,  'Digit7': 22,
+  'KeyU': 23,
+  'Comma': 12,      // ,  C5
+  'Semicolon': 13,  // ;  C#5
+  'Period': 14,     // .  D5
+  'KeyL': 15,      // L  D#5
+  'Slash': 16,      // /  E5
+  'KeyI': 24,  'Digit9': 25,
+  'KeyO': 26,  'Digit0': 27,
+  'KeyP': 28,  'Equal': 29,
+  'BracketLeft': 29,
+  'BracketRight': 31
+};
+
+const STAFF_LINE_SPACE = 11;
+const NOTE_HEAD_W = 9;
+const NOTE_HEAD_H = 6;
+const STEM_LEN = 26;
+const FLAG_GAP = 4;
+const PIXELS_PER_BEAT = 30;
+
+let synth = null;
+let metronomeSynth = null;
+let audioReady = false;
+
+const tonePresets = {
+  piano:{type:'sampler',urls:{"C4":"https://tonejs.github.io/audio/salamander/C4.mp3"}},
+  electric_piano:{type:'synth',oscillator:{type:'triangle'},envelope:{attack:0.02,decay:0.2,sustain:0.3,release:0.8}},
+  synth:{type:'synth',oscillator:{type:'sawtooth'},envelope:{attack:0.01,decay:0.3,sustain:0.4,release:0.6}},
+  guitar:{type:'synth',oscillator:{type:'triangle'},envelope:{attack:0.05,decay:0.4,sustain:0.2,release:1.2}}
+};
+
+let state = {
+  activeNotes: new Map(),
+  midiAccess: null,
+  selectedMidiDevice: null,
+  noteLabelMode: "all",
+  themeMode: "system",
+  mouseGlideEnabled: true,
+  staffEnabled: true,
+  intervalEnabled: true,
+  isPlaying: false,
+  tapTimes: [],
+  staffOffset: 0,
+  rootShift: 0,
+  octaveShift: 0,
+  scaleType: 'piano',
+  scaleNotes: new Set(),
+  intDragStep: 1,        // BPM整数位拖拽时的增减步长
+  intDragTimer: null,    // BPM整数位拖拽定时器
+  decDragTimer: null     // BPM小数位拖拽定时器
+};
+
+let isMouseDown = false;
+let keyPressed = {};
+let staffCanvas, staffCtx;
+let staffNotes = [];
+let chordStaffNotes = [];
+
+let keyScale = 1;
+const MIN_SCALE = 0.6;
+const MAX_SCALE = 2.0;
+let whiteKeyCount = 0;
+
+let navState = { mode:null, startX:0, startScrollLeft:0, startScale:1, startRight:0 };
+
+const $ = s => document.querySelector(s);
+
+
+function midiToNote(midi){
+  const idx = midi % 12;
+  const oct = Math.floor(midi / 12) - 1;
+  return { name: NOTE_NAMES[idx], octave: oct, full: `${NOTE_NAMES[idx]}${oct}` };
+}
+function isBlackKey(midi){
+  return [1,3,6,8,10].includes(midi % 12);
+}
+function getAccidental(midi){
+  return [1,3,6,8,10].includes(midi % 12) ? "♯" : "";
+}
+function getDiatonicDegree(midi){
+  const octave = Math.floor(midi / 12) - 1;
+  return octave * 7 + DEGREE_MAP[midi % 12];
+}
+function calcIntervalName(m1, m2){
+  const semitones = Math.abs(m1 - m2);
+  const octaves = Math.floor(semitones / 12);
+  const remain = semitones % 12;
+  const base = INTERVAL_NAMES[remain];
+  if(octaves === 0) return base;
+  if(remain === 0) return `${octaves}个纯八度`;
+  return `${octaves}个八度 + ${base}`;
+}
+
+function updateBpmDisplay(){
+  // 解决浮点尾差导致 147.99999999 显示成 147.100 的问题：先按小数点后2位 round
+  const rounded = Math.round(Tone.Transport.bpm.value * 100) / 100;
+  const bpm = rounded;
+  $("#bpmInt").textContent = Math.floor(bpm);
+  const dec = Math.round((bpm - Math.floor(bpm)) * 100);
+  $("#bpmDec").textContent = dec.toString().padStart(2, '0');
+}
+function setBpm(v){
+  Tone.Transport.bpm.value = Math.max(20, Math.min(300, v));
+  updateBpmDisplay();
+}
+
+// 根据分母数字转为 Tone.js 的音符时长字符串
+function getBeatUnit(denominator){
+  switch(denominator){
+    case 2:  return "2n";
+    case 8:  return "8n";
+    case 16: return "16n";
+    case 4:
+    default: return "4n";
+  }
+}
+
+// 按拍号分子数动态渲染节拍指示灯
+function renderBeatIndicators(num){
+  const container = $("#beatIndicators");
+  container.innerHTML = "";
+  for(let i = 0; i < num; i++){
+    const span = document.createElement("span");
+    span.className = "beat-light";
+    container.appendChild(span);
+  }
+}
+
+// 保存当前 scheduleRepeat 的事件ID，便于拍号更改后重新调度
+let metroRepeatId = null;
+
+// 停止节拍器后3秒熄灭指示灯的定时器
+let beatLightsFadeTimer = null;
+
+function clearBeatLightsFadeTimer(){
+  if(beatLightsFadeTimer !== null){
+    clearTimeout(beatLightsFadeTimer);
+    beatLightsFadeTimer = null;
+  }
+}
+
+function extinguishBeatLights(){
+  document.querySelectorAll('.beat-light').forEach(l => {
+    l.classList.remove("active", "strong");
+  });
+}
+
+function scheduleBeatLightsOff(delayMs = 3000){
+  clearBeatLightsFadeTimer();
+  beatLightsFadeTimer = setTimeout(() => {
+    extinguishBeatLights();
+    beatLightsFadeTimer = null;
+  }, delayMs);
+}
+
+// 按当前拍号重新注册节拍器循环（更新间隔单位+重拍判断）
+function rebuildMetroRepeat(){
+  if(metroRepeatId !== null){
+    Tone.Transport.clear(metroRepeatId);
+    metroRepeatId = null;
+  }
+  const num = parseInt($("#tsNumerator").value);   // 每小节拍数（分子）
+  const den = parseInt($("#tsDenominator").value); // 以几分音符为一拍（分母）
+  const unit = getBeatUnit(den);
+  // position 格式是 "bars:quarters:sixteenths"，第二字段是四分音符的浮点位置
+  // 拍单位 = 1/den 全音符 = 4/den 个四分音符
+  // 所以「第几拍」= floor(quarters * den / 4) % num
+  const quartersPerBeat = 4 / den;
+  metroRepeatId = Tone.Transport.scheduleRepeat((time) => {
+    const parts = Tone.Transport.position.split(':');
+    const quarters = parseFloat(parts[1]) + parseFloat(parts[2]) / 16;
+    let beat = Math.floor(quarters / quartersPerBeat) % num;
+    if(beat < 0) beat += num;
+    document.querySelectorAll('.beat-light').forEach((l, i) => {
+      l.classList.remove("active", "strong");
+      if(i === beat) l.classList.add(i === 0 ? "strong" : "active");
+    });
+    if(metronomeSynth){
+      const freq = beat === 0 ? 880 : 440; // 强拍高音，其他低音
+      metronomeSynth.triggerAttackRelease(freq, "32n", time);
+    }
+  }, unit);
+}
+
+
+// ========== BPM拖拽 ==========
+// 拖拽状态（避免在闭包内定义的监听器无法被removeEventListener移除）
+let intDragState = null;  // { startY, direction, mousemoveHandler, mouseupHandler }
+let decDragState = null;
+
+function stopIntDrag(){
+  if(state.intDragTimer){
+    clearInterval(state.intDragTimer);
+    state.intDragTimer = null;
+  }
+  if(intDragState){
+    document.removeEventListener("mousemove", intDragState.mousemoveHandler);
+    document.removeEventListener("mouseup", intDragState.mouseupHandler);
+    intDragState = null;
+  }
+}
+
+function onIntMouseDown(e){
+  if(e.button !== 0) return;
+  e.preventDefault();
+  stopIntDrag(); // 防止重复按下残留
+  const startY = e.clientY;
+  let direction = 0;
+
+  const mousemoveHandler = function(ev){
+    const deltaY = startY - ev.clientY;
+    if(deltaY > 3) direction = 1;
+    else if(deltaY < -3) direction = -1;
+    else direction = 0;
+  };
+  const mouseupHandler = stopIntDrag;
+
+  state.intDragTimer = setInterval(()=>{
+    if(direction !== 0){
+      const cur = Tone.Transport.bpm.value;
+      setBpm(cur + direction * state.intDragStep);
+    }
+  }, 200);
+
+  document.addEventListener("mousemove", mousemoveHandler);
+  document.addEventListener("mouseup", mouseupHandler);
+  intDragState = { mousemoveHandler, mouseupHandler };
+}
+
+function stopDecDrag(){
+  if(state.decDragTimer){
+    clearInterval(state.decDragTimer);
+    state.decDragTimer = null;
+  }
+  if(decDragState){
+    document.removeEventListener("mousemove", decDragState.mousemoveHandler);
+    document.removeEventListener("mouseup", decDragState.mouseupHandler);
+    decDragState = null;
+  }
+}
+
+function onDecMouseDown(e){
+  if(e.button !== 0) return;
+  e.preventDefault();
+  stopDecDrag();
+  const startY = e.clientY;
+  let direction = 0;
+
+  const mousemoveHandler = function(ev){
+    const deltaY = startY - ev.clientY;
+    if(deltaY > 3) direction = 1;
+    else if(deltaY < -3) direction = -1;
+    else direction = 0;
+  };
+  const mouseupHandler = stopDecDrag;
+
+  state.decDragTimer = setInterval(()=>{
+    if(direction !== 0){
+      const cur = Tone.Transport.bpm.value;
+      setBpm(cur + direction * 0.01);
+    }
+  }, 200);
+
+  document.addEventListener("mousemove", mousemoveHandler);
+  document.addEventListener("mouseup", mouseupHandler);
+  decDragState = { mousemoveHandler, mouseupHandler };
+}
+
+// ========== 双击编辑BPM ==========
+function startBpmEdit(){
+  const currentBpm = Tone.Transport.bpm.value.toFixed(2);
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.className = "bpm-input";
+  input.value = currentBpm;
+  input.min = 20;
+  input.max = 300;
+  input.step = 0.01;
+
+  const group = $(".bpm-num-group");
+  group.innerHTML = "";
+  group.appendChild(input);
+  input.focus();
+  input.select();
+
+  function confirm(){
+    const val = parseFloat(input.value);
+    // 先重建DOM结构（确保#bpmInt/#bpmDec就位）
+    group.innerHTML =
+      '<span id="bpmInt"></span><span class="bpm-dot">.</span><span id="bpmDec"></span>';
+    bindBpmDragHandlers(); // 先绑事件保证后续可交互
+    if(!isNaN(val)){
+      setBpm(val); // setBpm 内处理范围限制 + updateBpmDisplay
+    }else{
+      updateBpmDisplay(); // 输入非法则还原显示
+    }
+  }
+
+  input.addEventListener("blur", confirm);
+  input.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") input.blur();
+    if(e.key === "Escape"){ input.value = currentBpm; input.blur(); }
+  });
+}
+
+// 绑定BPM显示区域的交互事件（初始化/编辑完成后都调用一次）
+function bindBpmDragHandlers(){
+  const intEl = document.getElementById("bpmInt");
+  const decEl = document.getElementById("bpmDec");
+  const groupEl = document.querySelector(".bpm-num-group");
+  if(intEl) intEl.addEventListener("mousedown", onIntMouseDown);
+  if(decEl) decEl.addEventListener("mousedown", onDecMouseDown);
+  if(groupEl){
+    groupEl.addEventListener("dblclick", startBpmEdit);
+    // 鼠标样式提示可操作
+    if(intEl) intEl.style.cursor = "ns-resize";
+    if(decEl) decEl.style.cursor = "ns-resize";
+    groupEl.style.cursor = "text";
+  }
+}
+
+
+function detectChord(map){
+  const notes = Array.from(map.keys()).sort((a,b) => a - b);
+  if(notes.length === 0) return { display:"无", notes:notes, isInversion:false };
+  if(notes.length === 1){
+    return { display: `${midiToNote(notes[0]).full}(单音)`, notes:notes, isInversion:false };
+  }
+  for(let root of notes){
+    const rootMod = root % 12;
+    const rel = notes.map(n => (n - rootMod + 12) % 12).sort((a,b) => a - b);
+    for(const [key, intervals] of Object.entries(CHORD_INTERVALS)){
+      if(intervals.length === rel.length && intervals.every((v,i) => v === rel[i])){
+        return {
+          display: midiToNote(root).name + CHORD_INFO[key].name,
+          notes: notes,
+          isInversion: root !== notes[0],
+          key: key
+        };
+      }
+    }
+  }
+  return { display: `Add(${notes.map(m => midiToNote(m).full).join(",")})`, notes:notes, isInversion:false };
+}
+
+function buildChord(rootIdx, octave, type){
+  const base = (octave + 1) * 12 + rootIdx;
+  return CHORD_INTERVALS[type].map(i => base + i).filter(m => m >= MIDI_MIN && m <= MIDI_MAX);
+}
+
+function updateScale(){
+  const intervals = SCALES[state.scaleType];
+  state.scaleNotes = new Set(intervals.map(s => (state.rootShift + s) % 12));
+  
+  const highlight = state.scaleType !== 'piano';
+  document.querySelectorAll('.white, .black').forEach(k => {
+    const midi = Number(k.dataset.midi);
+    k.classList.toggle('scale-key', highlight && state.scaleNotes.has(midi % 12));
+  });
+}
+
+function getMidiFromKey(code){
+  if(!KEY_MAP.hasOwnProperty(code)) return null;
+  const offset = KEY_MAP[code];
+  const midi = MIDDLE_C_MIDI + state.octaveShift * 12 + state.rootShift + offset;
+  if(midi < MIDI_MIN || midi > MIDI_MAX) return null;
+  if(state.scaleType !== 'piano' && !state.scaleNotes.has(midi % 12)) return null;
+  return midi;
+}
+
+function onKeyDown(e){
+  if(e.repeat) return;
+  const midi = getMidiFromKey(e.code);
+  if(midi === null) return;
+  if(keyPressed[e.code]) return;
+  keyPressed[e.code] = true;
+  triggerNoteOn(midi);
+}
+function onKeyUp(e){
+  const midi = getMidiFromKey(e.code);
+  if(midi === null) return;
+  keyPressed[e.code] = false;
+  triggerNoteOff(midi);
+}
+
+
+function renderKeyboard(){
+  const el = $("#keyboardEl");
+  el.innerHTML = "";
+  let whiteIdx = 0;
+  
+  for(let midi = MIDI_MIN; midi <= MIDI_MAX; midi++){
+    const div = document.createElement("div");
+    div.dataset.midi = midi;
+    
+    if(isBlackKey(midi)){
+      div.className = "black";
+      const left = whiteIdx * WHITE_KEY_BASE * keyScale - BLACK_KEY_BASE * keyScale / 2;
+      div.style.left = left + "px";
+    }else{
+      div.className = "white";
+      div.style.left = (whiteIdx * WHITE_KEY_BASE * keyScale) + "px";
+      whiteIdx++;
+    }
+    
+    const label = document.createElement("div");
+    label.className = "key-label";
+    div.appendChild(label);
+
+    div.addEventListener("mousedown", e => {
+      e.preventDefault();
+      isMouseDown = true;
+      triggerNoteOn(midi);
+    });
+    div.addEventListener("mouseup", e => {
+      e.preventDefault();
+      triggerNoteOff(midi);
+    });
+    div.addEventListener("mouseenter", () => {
+      if(state.mouseGlideEnabled && isMouseDown && !state.activeNotes.has(midi)){
+        triggerNoteOn(midi);
+      }
+    });
+    div.addEventListener("mouseleave", () => {
+      if(state.mouseGlideEnabled && isMouseDown){
+        triggerNoteOff(midi);
+      }
+    });
+
+    div.addEventListener("touchstart", e => {
+      e.preventDefault();
+      isMouseDown = true;
+      triggerNoteOn(midi);
+    });
+    div.addEventListener("touchend", e => {
+      e.preventDefault();
+      triggerNoteOff(midi);
+    });
+    
+    el.appendChild(div);
+  }
+  
+  whiteKeyCount = whiteIdx;
+  el.style.width = (whiteKeyCount * WHITE_KEY_BASE * keyScale) + "px";
+  updateKeyLabels();
+  updateScale();
+  updateNavViewport();
+}
+
+function updateKeyLabels(){
+  document.querySelectorAll("[data-midi]").forEach(k => {
+    const midi = Number(k.dataset.midi);
+    const label = k.querySelector(".key-label");
+    switch(state.noteLabelMode){
+      case "all": label.textContent = midiToNote(midi).full; break;
+      case "octaveOnly": label.textContent = midiToNote(midi).name === 'C' ? midiToNote(midi).full : ""; break;
+      case "off": label.textContent = ""; break;
+    }
+  });
+}
+
+function setKeyActive(midi, active){
+  const el = document.querySelector(`[data-midi="${midi}"]`);
+  if(el) el.classList.toggle("active", active);
+}
+
+
+async function initAudio(presetKey){
+  try{
+    await Tone.start();
+    
+    if(synth){
+      synth.dispose();
+      synth = null;
+    }
+    
+    // 初始化节拍器合成器（只初始化一次）
+    if(!metronomeSynth){
+      metronomeSynth = new Tone.MembraneSynth({
+        pitchDecay: 0.05,
+        octaves: 6,
+        oscillator: { type: 'sine' },
+        envelope: {
+          attack: 0.001,
+          decay: 0.1,
+          sustain: 0.01,
+          release: 0.4
+        }
+      }).toDestination();
+    }
+    
+    const preset = tonePresets[presetKey];
+    
+    if(preset.type === 'sampler'){
+      synth = new Tone.Sampler(preset.urls).toDestination();
+    }else{
+      synth = new Tone.Synth(preset).toDestination();
+    }
+    
+    audioReady = true;
+    return true;
+  }catch(e){
+    try{
+      synth = new Tone.Synth(tonePresets.synth).toDestination();
+      if(!metronomeSynth){
+        metronomeSynth = new Tone.MembraneSynth().toDestination();
+      }
+      audioReady = true;
+      return true;
+    }catch(e2){
+      audioReady = false;
+      return false;
+    }
+  }
+}
+
+async function triggerNoteOn(midi){
+  if(!audioReady){
+    await initAudio('piano');
+  }
+  if(state.activeNotes.has(midi)) return;
+  
+  const freq = Tone.Midi(midi).toFrequency();
+  synth.triggerAttack(freq);
+  state.activeNotes.set(midi, performance.now());
+  setKeyActive(midi, true);
+  updateChordDisplay();
+  updateIntervalDisplay();
+  if(state.staffEnabled) addStaffNote(midi);
+}
+
+function triggerNoteOff(midi){
+  if(!state.activeNotes.has(midi)) return;
+  
+  const freq = Tone.Midi(midi).toFrequency();
+  if(synth) synth.triggerRelease(freq);
+  
+  const start = state.activeNotes.get(midi);
+  finalizeStaffNote(midi, performance.now() - start);
+  
+  state.activeNotes.delete(midi);
+  setKeyActive(midi, false);
+  updateChordDisplay();
+  updateIntervalDisplay();
+}
+
+function stopAllNotes(){
+  state.activeNotes.forEach((start, midi) => {
+    finalizeStaffNote(midi, performance.now() - start);
+    triggerNoteOff(midi);
+  });
+}
+
+function updateChordDisplay(){
+  const res = detectChord(state.activeNotes);
+  $("#chordDisplay").textContent = `音名 / 和弦：${res.display}`;
+  
+  if(res.key && CHORD_INFO[res.key]){
+    $("#chordIntervalDisplay").textContent = `构成：${CHORD_INFO[res.key].intervals.join(" + ")}`;
+  }else{
+    $("#chordIntervalDisplay").textContent = "";
+  }
+}
+
+function updateIntervalDisplay(){
+  if(!state.intervalEnabled){
+    $("#intervalDisplay").textContent = "";
+    return;
+  }
+  const notes = Array.from(state.activeNotes.keys()).sort((a,b) => a - b);
+  if(notes.length === 2){
+    $("#intervalDisplay").textContent = `音程：${calcIntervalName(notes[0], notes[1])}`;
+  }else if(notes.length <= 1){
+    $("#intervalDisplay").textContent = "音程：无";
+  }else{
+    $("#intervalDisplay").textContent = `音程：多音（${notes.length}个）`;
+  }
+}
+
+
+function initStaff(){
+  staffCanvas = $("#staffCanvas");
+  staffCtx = staffCanvas.getContext("2d");
+  resizeStaff();
+  window.addEventListener('resize', resizeStaff);
+  requestAnimationFrame(renderStaff);
+}
+
+function resizeStaff(){
+  const box = staffCanvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  staffCanvas.width = box.clientWidth * dpr;
+  staffCanvas.height = 210 * dpr;
+  staffCtx.scale(dpr, dpr);
+}
+
+function getStaffInfo(){
+  const w = staffCanvas.clientWidth;
+  const gap = 20;
+  const single = (210 - gap) / 2;
+  const trebleTop = 10;
+  const bassTop = single + gap;
+  return {
+    w, trebleTop, bassTop,
+    trebleRef: trebleTop + 1 * STAFF_LINE_SPACE,
+    bassRef: bassTop + 3 * STAFF_LINE_SPACE
+  };
+}
+
+function midiToStaffPos(midi){
+  const { trebleRef, bassRef } = getStaffInfo();
+  const degree = getDiatonicDegree(midi);
+  if(midi >= MIDDLE_C_MIDI){
+    return { clef: 'treble', y: trebleRef - (degree - 32) * (STAFF_LINE_SPACE / 2) };
+  }else{
+    return { clef: 'bass', y: bassRef - (degree - 24) * (STAFF_LINE_SPACE / 2) };
+  }
+}
+
+function addStaffNote(midi){
+  const pos = midiToStaffPos(midi);
+  staffNotes.push({
+    midi, x: staffCanvas.clientWidth * 0.75, y: pos.y, clef: pos.clef,
+    accidental: getAccidental(midi),
+    startTime: performance.now(), active: true, value: null
+  });
+}
+
+function finalizeStaffNote(midi, duration){
+  for(let i = staffNotes.length - 1; i >= 0; i--){
+    if(staffNotes[i].midi === midi && staffNotes[i].active){
+      staffNotes[i].duration = duration;
+      staffNotes[i].active = false;
+      staffNotes[i].value = NOTE_VALUES.find(v => duration >= v.min) || NOTE_VALUES[NOTE_VALUES.length - 1];
+      break;
+    }
+  }
+}
+
+function drawStaffLines(){
+  const { w, trebleTop, bassTop, trebleRef, bassRef } = getStaffInfo();
+  staffCtx.strokeStyle = '#222';
+  staffCtx.lineWidth = 1;
+  
+  for(let i = 0; i < 5; i++){
+    staffCtx.beginPath();
+    staffCtx.moveTo(0, trebleTop + i * STAFF_LINE_SPACE);
+    staffCtx.lineTo(w, trebleTop + i * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+    
+    staffCtx.beginPath();
+    staffCtx.moveTo(0, bassTop + i * STAFF_LINE_SPACE);
+    staffCtx.lineTo(w, bassTop + i * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+  }
+  
+  staffCtx.font = '42px serif';
+  staffCtx.fillStyle = '#222';
+  staffCtx.textBaseline = 'middle';
+  staffCtx.fillText('𝄞', 4, trebleRef);
+  staffCtx.fillText('𝄢', 6, bassRef + 2);
+  
+  const num = $("#tsNumerator").value;
+  const den = $("#tsDenominator").value;
+  staffCtx.font = 'bold 16px sans-serif';
+  staffCtx.textAlign = 'center';
+  staffCtx.fillText(num, 42, trebleRef - STAFF_LINE_SPACE - 1);
+  staffCtx.fillText(den, 42, trebleRef + STAFF_LINE_SPACE + 1);
+  staffCtx.fillText(num, 42, bassRef - STAFF_LINE_SPACE - 1);
+  staffCtx.fillText(den, 42, bassRef + STAFF_LINE_SPACE + 1);
+  staffCtx.textAlign = 'left';
+}
+
+function drawBarLines(){
+  const { w, trebleTop, bassTop } = getStaffInfo();
+  const beats = parseInt($("#tsNumerator").value);
+  const barW = PIXELS_PER_BEAT * beats;
+  const offset = state.staffOffset % barW;
+  
+  staffCtx.strokeStyle = '#222';
+  staffCtx.lineWidth = 1.2;
+  
+  for(let x = w - offset; x > 60; x -= barW){
+    staffCtx.beginPath();
+    staffCtx.moveTo(x, trebleTop);
+    staffCtx.lineTo(x, trebleTop + 4 * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+    
+    staffCtx.beginPath();
+    staffCtx.moveTo(x, bassTop);
+    staffCtx.lineTo(x, bassTop + 4 * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+  }
+}
+
+function drawNote(note){
+  staffCtx.save();
+  staffCtx.fillStyle = '#222';
+  staffCtx.strokeStyle = '#222';
+  
+  const { trebleTop, bassTop } = getStaffInfo();
+  const midY = note.clef === 'treble' ? trebleTop + 2 * STAFF_LINE_SPACE : bassTop + 2 * STAFF_LINE_SPACE;
+  const up = note.y < midY;
+  const sx = up ? note.x + NOTE_HEAD_W - 1 : note.x - NOTE_HEAD_W + 1;
+  const sy2 = up ? note.y - STEM_LEN : note.y + STEM_LEN;
+
+  if(note.accidental){
+    staffCtx.font = '13px serif';
+    staffCtx.textBaseline = 'middle';
+    staffCtx.fillText(note.accidental, note.x - NOTE_HEAD_W - 10, note.y);
+  }
+
+  staffCtx.beginPath();
+  const filled = note.value ? note.value.filled : true;
+  if(filled){
+    staffCtx.ellipse(note.x, note.y, NOTE_HEAD_W, NOTE_HEAD_H, -0.25, 0, Math.PI * 2);
+    staffCtx.fill();
+  }else{
+    staffCtx.ellipse(note.x, note.y, NOTE_HEAD_W, NOTE_HEAD_H, -0.25, 0, Math.PI * 2);
+    staffCtx.stroke();
+  }
+
+  const hasStem = note.value ? note.value.stem : true;
+  if(hasStem){
+    staffCtx.beginPath();
+    staffCtx.moveTo(sx, note.y);
+    staffCtx.lineTo(sx, sy2);
+    staffCtx.lineWidth = 1.5;
+    staffCtx.stroke();
+  }
+
+  staffCtx.restore();
+}
+
+function renderStaff(){
+  if(!state.staffEnabled){
+    requestAnimationFrame(renderStaff);
+    return;
+  }
+  const { w } = getStaffInfo();
+  staffCtx.clearRect(0, 0, w, 210);
+
+  drawStaffLines();
+  drawBarLines();
+
+  chordStaffNotes.forEach(n => drawNote(n));
+
+  for(let i = staffNotes.length - 1; i >= 0; i--){
+    staffNotes[i].x -= 0.8;
+    if(staffNotes[i].x < -40){
+      staffNotes.splice(i, 1);
+      continue;
+    }
+    drawNote(staffNotes[i]);
+  }
+
+  if(state.isPlaying){
+    const bpm = Tone.Transport.bpm.value;
+    state.staffOffset += (bpm / 60) * PIXELS_PER_BEAT / 60;
+  }
+
+  requestAnimationFrame(renderStaff);
+}
+
+
+async function togglePlay(){
+  if(state.isPlaying){
+    Tone.Transport.pause();
+    $("#playBtn").textContent = "▶";
+    state.isPlaying = false;
+    scheduleBeatLightsOff(1000); // 暂停后1秒自动熄灭指示灯
+  }else{
+    // 重新播放时取消尚未执行的熄灭定时器（防止刚启动就被熄灭）
+    clearBeatLightsFadeTimer();
+    // 确保音频上下文和节拍器合成器已初始化
+    if(!audioReady || !metronomeSynth){
+      await initAudio($("#toneSelect").value || 'piano');
+    }
+    await Tone.start();
+    Tone.Transport.start();
+    $("#playBtn").textContent = "⏸";
+    state.isPlaying = true;
+  }
+}
+
+function stopMetro(){
+  Tone.Transport.stop();
+  $("#playBtn").textContent = "▶";
+  state.isPlaying = false;
+  state.staffOffset = 0;
+  scheduleBeatLightsOff(3000); // 停止后3秒自动熄灭指示灯
+}
+
+
+function updateNavViewport(){
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+  const view = keyboardWrap.clientWidth;
+  const scroll = keyboardWrap.scrollLeft;
+  const navW = keyboardNav.clientWidth;
+  navViewport.style.width = Math.max(view / total * navW, 30) + 'px';
+  navViewport.style.left = (scroll / total * navW) + 'px';
+}
+
+function onNavDown(e){
+  e.preventDefault();
+  e.stopPropagation();
+  const target = e.target;
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(target.classList.contains('nav-handle-left')){
+    navState.mode = 'resizeLeft';
+    navState.startX = e.clientX;
+    navState.startScale = keyScale;
+    navState.startRight = keyboardWrap.scrollLeft + keyboardWrap.clientWidth;
+  }else if(target.classList.contains('nav-handle-right')){
+    navState.mode = 'resizeRight';
+    navState.startX = e.clientX;
+    navState.startScale = keyScale;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }else{
+    navState.mode = 'move';
+    navState.startX = e.clientX;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }
+
+  document.addEventListener("mousemove", onNavMove);
+  document.addEventListener("mouseup", stopNav);
+}
+
+function onNavMove(e){
+  if(!navState.mode) return;
+  e.preventDefault();
+  const dx = e.clientX - navState.startX;
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(navState.mode === 'move'){
+    keyboardWrap.scrollLeft = navState.startScrollLeft + dx / navW * total;
+    updateNavViewport();
+  }else if(navState.mode === 'resizeLeft'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 - ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startRight - keyboardWrap.clientWidth;
+      updateNavViewport();
+    }
+  }else if(navState.mode === 'resizeRight'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 + ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startScrollLeft;
+      updateNavViewport();
+    }
+  }
+}
+
+function stopNav(){
+  navState.mode = null;
+  document.removeEventListener("mousemove", onNavMove);
+  document.removeEventListener("mouseup", stopNav);
+}
+
+// 触摸版导航条控制
+function onNavTouchStart(e){
+  e.preventDefault();
+  e.stopPropagation();
+  const touch = e.touches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(target.classList.contains('nav-handle-left')){
+    navState.mode = 'resizeLeft';
+    navState.startX = touch.clientX;
+    navState.startScale = keyScale;
+    navState.startRight = keyboardWrap.scrollLeft + keyboardWrap.clientWidth;
+  }else if(target.classList.contains('nav-handle-right')){
+    navState.mode = 'resizeRight';
+    navState.startX = touch.clientX;
+    navState.startScale = keyScale;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }else{
+    navState.mode = 'move';
+    navState.startX = touch.clientX;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }
+
+  document.addEventListener("touchmove", onNavTouchMove, { passive: false });
+  document.addEventListener("touchend", stopNavTouch);
+}
+
+function onNavTouchMove(e){
+  if(!navState.mode) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const dx = touch.clientX - navState.startX;
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(navState.mode === 'move'){
+    keyboardWrap.scrollLeft = navState.startScrollLeft + dx / navW * total;
+    updateNavViewport();
+  }else if(navState.mode === 'resizeLeft'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 - ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startRight - keyboardWrap.clientWidth;
+      updateNavViewport();
+    }
+  }else if(navState.mode === 'resizeRight'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 + ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startScrollLeft;
+      updateNavViewport();
+    }
+  }
+}
+
+function stopNavTouch(){
+  navState.mode = null;
+  document.removeEventListener("touchmove", onNavTouchMove);
+  document.removeEventListener("touchend", stopNavTouch);
+}
+
+
+function setKeyScale(newScale, centerRatio = null){
+  newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+  if(newScale === keyScale) return;
+
+  const old = keyScale;
+  const wrapW = keyboardWrap.clientWidth;
+  const scroll = keyboardWrap.scrollLeft;
+
+  if(centerRatio === null){
+    centerRatio = (scroll + wrapW / 2) / (whiteKeyCount * WHITE_KEY_BASE * old);
+  }
+
+  keyScale = newScale;
+  document.documentElement.style.setProperty('--key-scale', keyScale);
+  renderKeyboard();
+  $("#keyScaleSlider").value = keyScale;
+
+  const newTotal = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+  keyboardWrap.scrollLeft = centerRatio * newTotal - wrapW / 2;
+  updateNavViewport();
+}
+
+function autoFit(){
+  const wrapW = keyboardWrap.clientWidth - 20;
+  const isMobile = window.innerWidth < 700;
+  const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+  
+  // 竖屏显示更少的琴键，保证好按
+  let targetWhiteKeys = isMobile ? (isPortrait ? 5 : 6) : 8;
+  const targetWidth = targetWhiteKeys * WHITE_KEY_BASE;
+  const initScale = wrapW / targetWidth;
+  
+  setKeyScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, initScale)));
+}
+
+
+async function setupMidi(){
+  if(!navigator.requestMIDIAccess){
+    $("#midiStatus").textContent = "浏览器不支持WebMIDI";
+    return;
+  }
+  try{
+    state.midiAccess = await navigator.requestMIDIAccess({sysex:false});
+    $("#midiStatus").textContent = "MIDI已就绪";
+    fillMidiList();
+    state.midiAccess.onstatechange = fillMidiList;
+  }catch(e){
+    $("#midiStatus").textContent = "MIDI权限被拒绝";
+  }
+}
+
+function fillMidiList(){
+  const sel = $("#midiDeviceSelect");
+  sel.innerHTML = "<option value=''>请选择MIDI输入</option>";
+  if(!state.midiAccess) return;
+  
+  for(const input of state.midiAccess.inputs.values()){
+    const opt = document.createElement("option");
+    opt.value = input.id;
+    opt.textContent = input.name;
+    sel.appendChild(opt);
+  }
+
+  const inputs = Array.from(state.midiAccess.inputs.values());
+  if(inputs.length > 0){
+    sel.value = inputs[0].id;
+    attachMidi(inputs[0].id);
+  }
+}
+
+function attachMidi(id){
+  if(!state.midiAccess) return;
+  if(state.selectedMidiDevice){
+    state.selectedMidiDevice.onmidimessage = null;
+  }
+  const input = state.midiAccess.inputs.get(id);
+  if(!input) return;
+  state.selectedMidiDevice = input;
+  input.onmidimessage = (evt) => {
+    const [s, note, vel] = evt.data;
+    const cmd = s >> 4;
+    if(cmd === 9 && vel > 0) triggerNoteOn(note);
+    else if(cmd === 8 || (cmd === 9 && vel === 0)) triggerNoteOff(note);
+  };
+  $("#midiStatus").textContent = `✅已连接：${input.name}`;
+}
+
+
+function openSettings(){
+  $("#settingModalWrap").classList.add('active');
+  document.body.classList.add('modal-open');
+}
+function closeSettings(){
+  $("#settingModalWrap").classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+
+document.addEventListener('mouseup', () => {
+  isMouseDown = false;
+  stopAllNotes();
+});
+document.addEventListener('touchend', () => {
+  isMouseDown = false;
+  stopAllNotes();
+});
+
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
+
+window.addEventListener('resize', () => autoFit());
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  renderKeyboard();
+  applyTheme("system");
+  initStaff();
+  setBpm(120);
+  Tone.Transport.timeSignature = [4, 4];
+  renderBeatIndicators(4);   // 初始4个指示灯
+  rebuildMetroRepeat();      // 注册节拍循环
+  
+  bindEvents();
+
+  initAudio('piano').catch(() => {});
+
+  setupMidi();
+  autoFit();
+  bindBpmDragHandlers(); // 绑定BPM整数/小数位拖拽+双击编辑
+});
+
+
+function bindEvents(){
+  $("#playBtn").addEventListener("click", togglePlay);
+  $("#stopBtn").addEventListener("click", stopMetro);
+  $("#bpmUp").addEventListener("click", () => setBpm(Tone.Transport.bpm.value + 1));
+  $("#bpmDown").addEventListener("click", () => setBpm(Tone.Transport.bpm.value - 1));
+
+  // Tap Tempo 功能
+  $("#tapBtn").addEventListener("click", () => {
+    const now = performance.now();
+    // 清空超过2秒的旧点击记录
+    state.tapTimes = state.tapTimes.filter(t => now - t < 2000);
+    state.tapTimes.push(now);
+    // 至少需要2次点击才能计算BPM
+    if(state.tapTimes.length >= 2){
+      const intervals = [];
+      for(let i = 1; i < state.tapTimes.length; i++){
+        intervals.push(state.tapTimes[i] - state.tapTimes[i-1]);
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const newBpm = Math.round(60000 / avgInterval); // 只取整数部分
+      setBpm(newBpm);
+    }
+  });
+
+  function updateTimeSignature(){
+    const num = parseInt($("#tsNumerator").value);
+    const den = parseInt($("#tsDenominator").value);
+    const wasPlaying = state.isPlaying;
+    // 停止并重置位置到0，避免旧position的quarters导致新拍号下错位
+    Tone.Transport.stop();
+    state.isPlaying = false;
+    state.staffOffset = 0;
+    $("#playBtn").textContent = "▶";
+    Tone.Transport.timeSignature = [num, den]; // Tone.js v14 接受 [分子, 分母]
+    renderBeatIndicators(num);    // 更新指示灯数量
+    rebuildMetroRepeat();         // 重新注册循环（更新间隔单位）
+    if(wasPlaying){
+      // 重置位置后重新启动 → 此时不应调度灯光熄灭
+      clearBeatLightsFadeTimer();
+      Tone.Transport.start();
+      $("#playBtn").textContent = "⏸";
+      state.isPlaying = true;
+    }else{
+      // 如果本来就没有播放 → 3秒后熄灭旧状态残留的灯光
+      extinguishBeatLights(); // 直接熄灭更合适，因为新的数量/状态已经重建
+    }
+  }
+  $("#tsNumerator").addEventListener("change", updateTimeSignature);
+  $("#tsDenominator").addEventListener("change", updateTimeSignature);
+  
+  $("#noteLabelMode").addEventListener("change", e => {
+    state.noteLabelMode = e.target.value;
+    updateKeyLabels();
+  });
+  $("#themeSetting").addEventListener("change", e => {
+    state.themeMode = e.target.value;
+    applyTheme(state.themeMode);
+  });
+  $("#mouseGlideSetting").addEventListener("change", e => {
+    state.mouseGlideEnabled = e.target.value === "on";
+  });
+  $("#staffDisplaySetting").addEventListener("change", e => {
+    state.staffEnabled = e.target.value === "on";
+    $("#staffBox").classList.toggle("hidden", !state.staffEnabled);
+  });
+  $("#intervalDisplaySetting").addEventListener("change", e => {
+    state.intervalEnabled = e.target.value === "on";
+    updateIntervalDisplay();
+  });
+
+  $("#keyScaleSlider").addEventListener('input', e => setKeyScale(parseFloat(e.target.value)));
+
+  $("#rootNoteSelect").addEventListener("change", e => {
+    state.rootShift = parseInt(e.target.value);
+    updateScale();
+  });
+  $("#octaveSelect").addEventListener("change", e => {
+    state.octaveShift = parseInt(e.target.value) - 4;
+    updateScale();
+  });
+  $("#scaleSelect").addEventListener("change", e => {
+    state.scaleType = e.target.value;
+    updateScale();
+  });
+
+  $("#toneSelect").addEventListener("change", async e => {
+    await initAudio(e.target.value);
+  });
+  
+  $("#midiDeviceSelect").addEventListener("change", e => attachMidi(e.target.value));
+  $("#refreshMidiBtn").addEventListener("click", setupMidi);
+
+  $("#themeBtn").addEventListener("click", () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    applyTheme(cur === "dark" ? "light" : "dark");
+  });
+
+  $("#settingBtn").addEventListener("click", openSettings);
+  $("#modalClose").addEventListener("click", closeSettings);
+  $("#settingModalWrap").addEventListener("click", e => {
+    if(e.target.id === "settingModalWrap") closeSettings();
+  });
+
+  // 导航条：鼠标+触摸
+  navViewport.addEventListener("mousedown", onNavDown);
+  navViewport.addEventListener("touchstart", onNavTouchStart, { passive: false });
+  keyboardWrap.addEventListener("scroll", updateNavViewport);
+
+  // 双指缩放
+  let pinchState = { active:false, startDist:0, startScale:1, centerRatio:0 };
+  
+  function getTouchDist(touches){
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+  
+  keyboardWrap.addEventListener("touchstart", e => {
+    if(e.touches.length !== 2) return;
+    e.preventDefault();
+    
+    const dist = getTouchDist(e.touches);
+    const rect = keyboardWrap.getBoundingClientRect();
+    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+    const centerRatio = (keyboardWrap.scrollLeft + centerX) / (whiteKeyCount * WHITE_KEY_BASE * keyScale);
+    
+    pinchState.active = true;
+    pinchState.startDist = dist;
+    pinchState.startScale = keyScale;
+    pinchState.centerRatio = centerRatio;
+  }, { passive: false });
+  
+  keyboardWrap.addEventListener("touchmove", e => {
+    if(!pinchState.active || e.touches.length !== 2) return;
+    e.preventDefault();
+    
+    const dist = getTouchDist(e.touches);
+    const ratio = dist / pinchState.startDist;
+    const newScale = pinchState.startScale * ratio;
+    setKeyScale(newScale, pinchState.centerRatio);
+  }, { passive: false });
+  
+  keyboardWrap.addEventListener("touchend", () => {
+    pinchState.active = false;
+  });
+
+  // 和弦查询
+  const chordRoot = $("#chordRoot");
+  NOTE_NAMES.forEach((n, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = n;
+    chordRoot.appendChild(opt);
+  });
+  const chordOct = $("#chordOctave");
+  for(let o = 0; o <= 8; o++){
+    const opt = document.createElement("option");
+    opt.value = o;
+    opt.textContent = o;
+    chordOct.appendChild(opt);
+  }
+  chordRoot.value = 0;
+  chordOct.value = 4;
+
+  $("#showChordBtn").addEventListener("click", () => {
+    const rootIdx = parseInt($("#chordRoot").value);
+    const type = $("#chordType").value;
+    const oct = parseInt($("#chordOctave").value);
+    const list = buildChord(rootIdx, oct, type);
+    
+    document.querySelectorAll('.chord-highlight').forEach(el => {
+      el.classList.remove('chord-highlight');
+    });
+    
+    list.forEach(midi => {
+      const el = document.querySelector(`[data-midi="${midi}"]`);
+      if(el) el.classList.add('chord-highlight');
+    });
+
+    if(state.staffEnabled){
+      chordStaffNotes = list.map(midi => {
+        const pos = midiToStaffPos(midi);
+        return { midi, x: staffCanvas.clientWidth * 0.5, y: pos.y, clef: pos.clef, accidental: getAccidental(midi) };
+      });
+      setTimeout(() => chordStaffNotes = [], 2500);
+    }
+
+    if(audioReady){
+      list.forEach(midi => {
+        synth.triggerAttack(Tone.Midi(midi).toFrequency());
+      });
+      setTimeout(() => {
+        list.forEach(midi => synth.triggerRelease(Tone.Midi(midi).toFrequency()));
+      }, 2500);
+    }
+  });
+}
+
+function applyTheme(mode){
+  if(mode === "system"){
+    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    $("#themeBtn").textContent = dark ? "☀️" : "🌙";
+  }else{
+    document.documentElement.setAttribute("data-theme", mode);
+    $("#themeBtn").textContent = mode === "dark" ? "☀️" : "🌙";
+  }
+}
+</script>
+</body>
+</html>
