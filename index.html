@@ -1,0 +1,3440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>MIDI乐理学习键盘</title>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif;}
+:root{
+  --bg:#e8ff63cb;
+  --bg-panel:#ffffff;
+  --text:#222233;
+  --text-muted:#666;
+  --white-key:#ffffff;
+  --white-key-active:#ffd6ef;
+  --black-key:#222222;
+  --black-key-active:#b86baf;
+  --chord-highlight:#ffe066;
+  --chord-highlight-dark:#ffcc00;
+  --accent:#ff77bb;
+  --accent-2:#77aaff;
+  --danger:#ff6666;
+  --border:#ddd;
+  --shadow:0 4px 16px rgba(0,0,0,0.08);
+  --metro-bg:#2a2a33;
+  --metro-btn-bg:#3a3a45;
+  --metro-btn-hover:#4a4a58;
+  --metro-text:#f0f0f5;
+  --metro-accent:#ff77bb;
+  --key-scale: 1;
+}
+body.modal-open{
+  overflow: hidden;
+}
+[data-theme="dark"]{
+  --bg:#1a1423;
+  --bg-panel:#271f38;
+  --text:#f0edf7;
+  --text-muted:#aaa;
+  --white-key:#ffffff;
+  --white-key-active:#ffb8dd;
+  --black-key:#111111;
+  --black-key-active:#703868;
+  --border:#443858;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  transition:background 0.22s,color 0.22s;
+  padding:12px;
+}
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+  gap:10px;
+}
+h1{
+  font-size:1.4rem;
+  font-weight:600;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color:transparent;
+}
+.header-buttons{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.theme-toggle,.setting-toggle{
+  background:none;
+  border:none;
+  font-size:1.4rem;
+  cursor:pointer;
+  padding:6px 10px;
+  border-radius:10px;
+  background:var(--bg-panel);
+  box-shadow:var(--shadow);
+  transition:transform 0.2s;
+}
+.theme-toggle:hover,.setting-toggle:hover{transform:scale(1.08);}
+
+.metronome-panel{
+  background:var(--metro-bg);
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+  color:var(--metro-text);
+}
+.metro-controls{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.metro-btn{
+  background:var(--metro-btn-bg);
+  border:none;
+  color:var(--metro-text);
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:1rem;
+  transition:background 0.15s;
+  min-width:40px;
+  text-align:center;
+  user-select:none;
+}
+.metro-btn:hover{
+  background:var(--metro-btn-hover);
+}
+.tap-btn{
+  font-weight:600;
+  padding:8px 18px;
+}
+.bpm-display{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#1a1a22;
+  padding:4px 10px;
+  border-radius:6px;
+  border:1px solid #444;
+  user-select:none;
+}
+.bpm-num-group{
+  display:flex;
+  align-items:baseline;
+}
+#bpmInt{
+  font-size:1.6rem;
+  font-weight:700;
+  color:var(--metro-accent);
+  font-variant-numeric:tabular-nums;
+}
+.bpm-dot{
+  font-size:1.2rem;
+  color:var(--metro-accent);
+  margin:0 1px;
+}
+#bpmDec{
+  font-size:1rem;
+  font-weight:600;
+  color:var(--metro-accent);
+  font-variant-numeric:tabular-nums;
+  opacity:0.85;
+  min-width:22px;
+}
+.bpm-adjust{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.bpm-arrow{
+  background:none;
+  border:none;
+  color:var(--metro-text);
+  font-size:0.6rem;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  opacity:0.7;
+}
+.bpm-arrow:hover{opacity:1;}
+
+.bpm-input{
+  background: transparent;
+  border: 1px solid var(--metro-accent);
+  border-radius: 4px;
+  color: var(--metro-accent);
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  width: 110px;
+  outline: none;
+  text-align: center;
+  box-shadow: 0 0 0 2px rgba(255,119,187,0.15);
+}
+.bpm-input:focus{
+  box-shadow: 0 0 0 3px rgba(255,119,187,0.35);
+}
+
+.beat-indicators{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  height:30px;
+  margin-left:8px;
+}
+.beat-light{
+  width:6px;
+  height:24px;
+  background:#444;
+  border-radius:2px;
+  transition:all 0.08s ease;
+}
+.beat-light.active{
+  background:#77eeaa;
+  box-shadow:0 0 8px #77eeaa;
+}
+.beat-light.strong{
+  background:#ff77bb;
+  box-shadow:0 0 10px #ff77bb;
+}
+
+.time-signature{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin-left:auto;
+}
+.time-signature select{
+  background:var(--metro-btn-bg);
+  color:var(--metro-text);
+  border:none;
+  padding:6px 8px;
+  border-radius:6px;
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  width:50px;
+  text-align:center;
+}
+.ts-slash{
+  font-size:1.2rem;
+  font-weight:700;
+  color:var(--metro-text);
+}
+
+.setting-modal-wrap{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:none;
+  z-index:999;
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:30px;
+}
+.setting-modal-wrap.active{
+  display:flex;
+}
+.setting-modal{
+  background:var(--bg-panel);
+  border-radius:16px;
+  padding:20px 22px;
+  width: min(760px, 92vw);     /* 自适应：PC最大~760px，小屏保留8%左右边距 */
+  max-width: none;
+  min-width: 320px;
+  max-height: 90vh;            /* 最大高度 90% 视口，内容超出滚 settings-grid */
+  min-height: 420px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  overscroll-behavior: contain;
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+  flex-shrink:0;
+}
+.modal-close{
+  border:none;background:transparent;font-size:1.3rem;cursor:pointer;
+  color:var(--text);
+}
+.settings-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  flex:1;
+  padding-right:6px;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.settings-grid::-webkit-scrollbar{
+  display: none;
+}
+.setting-item{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:0.88rem;
+  flex-shrink:0;
+}
+.setting-item.col-full{ grid-column: 1 / -1; }
+.setting-item input[type="range"]{
+  width:100%;
+  height:6px;
+  cursor:pointer;
+}
+.section-title{
+  margin:4px 0 0 0;
+  font-size:0.95rem;
+  color:var(--metro-accent);
+  font-weight:700;
+  border-bottom:1px dashed var(--border);
+  padding-bottom:4px;
+}
+.section-title-row{
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px dashed var(--border); padding-bottom:4px; margin-bottom:6px;
+}
+.section-title-row .section-title{ border:none; padding:0; }
+.inline-switch{
+  display:inline-flex; align-items:center; gap:6px;
+  font-weight:600; user-select:none; cursor:pointer;
+  font-size:0.8rem;
+}
+.inline-switch input{ cursor:pointer; }
+.btn-mini{
+  border:1px solid var(--border);
+  background:var(--metro-btn-bg);
+  color:var(--metro-text);
+  padding:4px 10px;
+  border-radius:6px;
+  font-size:0.8rem;
+  cursor:pointer;
+}
+.btn-mini:hover{ background:var(--metro-btn-hover); }
+
+/* ADSR 画布 + 旋钮行 */
+.adsr-env-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  background:rgba(0,0,0,0.22);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px;
+}
+#adsrEnvCanvas{
+  width:100%;
+  height:200px;
+  max-width:560px;
+  margin:0 auto;
+  border-radius:6px;
+  background:linear-gradient(180deg, #0e1320 0%, #181e31 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  display:block;
+}
+.adsr-knob-row{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap:8px;
+}
+.knob-box{
+  display:flex; flex-direction:column; align-items:center;
+  gap:4px;
+  background:rgba(255,255,255,0.03);
+  border-radius:8px;
+  padding:6px 4px;
+  border:1px solid rgba(255,255,255,0.04);
+}
+.knob-box label{
+  font-size:0.7rem;
+  font-weight:700;
+  color:var(--metro-accent);
+  letter-spacing:0.06em;
+}
+.knob-box input[type=range]{ width:92%; }
+.knob-value{
+  font-variant-numeric: tabular-nums;
+  font-size:0.75rem;
+  opacity:0.9;
+  font-weight:600;
+}
+
+/* 效果模块（details / summary） */
+.fx-details{
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:rgba(0,0,0,0.15);
+  padding:8px 12px;
+}
+.fx-details summary{
+  cursor:pointer;
+  font-weight:700;
+  padding:2px 0 6px 0;
+  list-style:none;
+  user-select:none;
+  color:var(--metro-accent);
+}
+.fx-details summary::before{ content:"▶ "; font-size:0.8rem; }
+.fx-details[open] summary::before{ content:"▼ "; }
+.fx-row{
+  padding:8px 4px;
+  border-top:1px dashed rgba(255,255,255,0.06);
+}
+.fx-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:6px;
+}
+.fx-head select{
+  background:var(--metro-btn-bg);
+  color:var(--metro-text);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:2px 6px;
+  font-size:0.8rem;
+}
+.fx-params{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap:8px 14px;
+}
+.fx-params label{
+  display:flex; flex-direction:column; gap:3px;
+  font-size:0.8rem; font-weight:600;
+}
+.fx-params input[type=range]{ height:4px; }
+
+.panel{
+  background:var(--bg-panel);
+  border-radius:16px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+}
+.info-panel{
+  display:flex;
+  gap:16px;
+  align-items:stretch;
+}
+.left-info{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.staff-box{
+  flex:1;
+  min-width:320px;
+  background:rgba(255,255,255,0.7);
+  border-radius:10px;
+  padding:10px;
+}
+.staff-box.hidden{
+  display:none;
+}
+#staffCanvas{
+  width:100%;
+  height:210px;
+  display:block;
+}
+.row{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin:8px 0;
+}
+.chord-info{
+  margin-top:4px;
+  padding:10px 14px;
+  border-radius:12px;
+  background:rgba(140,80,255,0.08);
+  border:1px dashed rgba(140,80,255,0.35);
+  color:var(--text-muted);
+  font-size:0.86rem;
+  line-height:1.6;
+  display:none;
+}
+.chord-info.active{ display:block; }
+.chord-info .ch-title{
+  font-size:1.05rem;
+  font-weight:600;
+  color:var(--accent);
+  margin-bottom:3px;
+}
+.chord-info .ch-stack{
+  font-size:0.95rem;
+  color:var(--text);
+  margin-bottom:3px;
+}
+.chord-info .ch-notes{
+  font-size:0.9rem;
+  margin-bottom:3px;
+}
+.chord-info .ch-desc{
+  font-size:0.85rem;
+  opacity:0.9;
+}
+select,button{
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--bg-panel);
+  color:var(--text);
+  font-size:0.92rem;
+  transition:transform 0.15s;
+  cursor:pointer;
+}
+button:hover{transform:translateY(-1px);}
+.info-line{margin:6px 0;font-size:0.94rem;color:var(--text-muted);}
+.chord-display{
+  font-size:1.3rem;
+  font-weight:bold;
+  margin:10px 0 4px 0;
+  min-height:2.2rem;
+  color:var(--accent);
+}
+.interval-display{
+  font-size:1.3rem;
+  color:var(--accent-2);
+  margin-bottom:6px;
+  min-height:1.4rem;
+}
+.interval-text{
+  font-size:0.82rem;
+  line-height:1.55;
+  color:var(--text-muted);
+  margin-bottom:6px;
+  min-height:1.2rem;
+}
+.interval-text .chord-desc{
+  opacity:0.85;
+}
+
+/* 导航条 - 桌面端 */
+.keyboard-nav{
+  height:20px;
+  background:#2a2a33;
+  border-radius:6px 6px 0 0;
+  margin:0 4px;
+  position:relative;
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:none;          /* 双指捏合缩放琴键在此条上进行 */
+}
+.nav-viewport{
+  position:absolute;
+  top:2px;
+  bottom:2px;
+  background:rgba(255,255,255,0.25);
+  border:1px solid rgba(255,255,255,0.5);
+  border-radius:4px;
+  cursor:grab;
+  min-width:30px;
+  touch-action:none;
+}
+.nav-viewport:active{
+  cursor:grabbing;
+}
+.nav-handle{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:6px;
+  cursor:ew-resize;
+  background:rgba(255,255,255,0.6);
+  z-index:2;
+}
+.nav-handle-left{
+  left:0;
+  border-radius:3px 0 0 3px;
+}
+.nav-handle-right{
+  right:0;
+  border-radius:0 3px 3px 0;
+}
+
+.keyboard-wrap{
+  overflow-x:hidden;
+  overflow-y:hidden;
+  padding:0 4px 20px 4px;
+  background:#2a2a33;
+  border-radius:0 0 6px 6px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* ===== 效果器机架 ===== */
+.fx-rack{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin:6px 0;
+}
+.fx-unit{
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px 10px;
+  background:rgba(255,255,255,0.03);
+  opacity:0.55;
+}
+.fx-unit.on{ opacity:1; }
+.fx-unit-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:4px;
+}
+.fx-unit-btns{ display:flex; gap:4px; }
+.fx-mini{
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text);
+  border-radius:6px;
+  font-size:0.7rem;
+  width:24px;
+  height:22px;
+  cursor:pointer;
+  line-height:1;
+}
+.fx-mini:hover{ background:rgba(255,255,255,0.08); }
+.fx-mini.fx-del:hover{ background:rgba(255,80,80,0.25); border-color:#ff6688; }
+.fx-add-row{
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+}
+.fx-add-row select{ flex:1; }
+#adsrEnvCanvas{
+  touch-action:none;   /* 允许在画布上拖拽节点而不滚动页面 */
+  cursor:grab;
+}
+#adsrEnvCanvas:active{ cursor:grabbing; }
+.keyboard{
+  position:relative;
+  height:220px;
+  margin:0 auto;
+  transform-origin: left center;
+}
+.white{
+  width: calc(28px * var(--key-scale));
+  height:220px;
+  background:var(--white-key);
+  border:1px solid var(--border);
+  border-radius:0 0 6px 6px;
+  position:absolute;
+  top:0;
+  cursor:pointer;
+  transition:background 0.12s ease;
+  z-index:1;
+  user-select:none;
+}
+.white.active{
+  background:var(--white-key-active);
+  transform:translateY(2px);
+}
+.white.chord-highlight{
+  background:var(--chord-highlight) !important;
+}
+.white.scale-key{
+  background: #f8faff;
+  border-color: #c5d4ff;
+}
+.black{
+  width: calc(18px * var(--key-scale));
+  height:130px;
+  background:var(--black-key);
+  border-radius:0 0 5px 5px;
+  position:absolute;
+  z-index:2;
+  top:0;
+  cursor:pointer;
+  transition:background 0.12s ease;
+  user-select:none;
+}
+.black.active{
+  background:var(--black-key-active);
+  transform:translateY(2px);
+}
+.black.chord-highlight{
+  background:var(--chord-highlight-dark) !important;
+}
+.black.scale-key{
+  background: #2a3142;
+  border:1px solid #556688;
+}
+.key-label{
+  position:absolute;
+  bottom:6px;
+  font-size:0.7rem;
+  text-align:center;
+  width:100%;
+  pointer-events:none;
+  color:#333;
+  user-select:none;
+}
+.black .key-label{
+  color:#ffffff;
+}
+
+/* ========== 手机竖屏适配 ========== */
+@media(max-width:700px){
+  body{padding:8px;}
+  h1{font-size:1.1rem;}
+  
+  /* 导航条加高加宽手柄，方便手指触摸 */
+  .keyboard-nav{
+    height:28px;
+  }
+  .nav-handle{
+    width:10px;
+  }
+  .nav-viewport{
+    min-width:40px;
+  }
+  
+  /* 键盘高度适配竖屏 */
+  .keyboard{
+    height:180px;
+  }
+  .white{
+    height:180px;
+  }
+  .black{
+    height:110px;
+  }
+  
+  .info-panel{flex-direction:column;}
+  .staff-box{min-height:160px;}
+  
+  .setting-modal{
+    width: min(620px, 94vw);    /* 横屏手机 / 小平板：充分利用横向空间 */
+    max-height: 90vh;
+  }
+}
+
+/* ============================================================
+   手机竖屏（≤540px窄屏）：单列布局，Modal基本全屏，可展示约6项，其余滚
+   ============================================================ */
+@media(max-width: 540px){
+  .setting-modal-wrap{
+    align-items: center;   /* 改为上下居中（默认是顶对齐）*/
+    padding-top: 0;
+  }
+  .setting-modal{
+    width: 94vw;           /* 几乎全宽，左右各 3% 边距 */
+    max-height: 92vh;      /* 竖屏高：一屏大约能容纳 6 个 setting-item，其余自动滚动 */
+    padding: 16px 18px;
+    min-width: unset;
+    min-height: unset;
+  }
+  .settings-grid{
+    grid-template-columns: 1fr;   /* 单列（不再 2 列挤着） */
+    gap: 10px;
+  }
+}
+
+/* 超窄屏进一步优化 */
+@media(max-width:420px){
+  .keyboard-nav{
+    height:32px;
+  }
+  .nav-handle{
+    width:12px;
+  }
+  .keyboard{
+    height:160px;
+  }
+  .white{
+    height:160px;
+  }
+  .black{
+    height:95px;
+  }
+  .key-label{
+    font-size:0.6rem;
+  }
+}
+
+@media(orientation: portrait){
+  /* 竖屏专属优化 */
+  .keyboard-nav{
+    touch-action: pan-x;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎹 MIDI乐理学习键盘</h1>
+  <div class="header-buttons">
+    <button class="theme-toggle" id="themeBtn">🌙</button>
+    <button class="setting-toggle" id="settingBtn">⚙</button>
+  </div>
+</header>
+
+<div class="metronome-panel">
+  <div class="metro-controls">
+    <button class="metro-btn" id="playBtn">▶</button>
+    <button class="metro-btn" id="stopBtn">■</button>
+    <button class="metro-btn tap-btn" id="tapBtn">Tap</button>
+    
+    <div class="bpm-display">
+      <div class="bpm-num-group">
+        <span id="bpmInt">120</span><span class="bpm-dot">.</span><span id="bpmDec">00</span>
+      </div>
+      <div class="bpm-adjust">
+        <button class="bpm-arrow" id="bpmUp">▲</button>
+        <button class="bpm-arrow" id="bpmDown">▼</button>
+      </div>
+    </div>
+
+    <div class="beat-indicators" id="beatIndicators">
+      <span class="beat-light"></span>
+      <span class="beat-light"></span>
+      <span class="beat-light"></span>
+      <span class="beat-light"></span>
+    </div>
+
+    <div class="time-signature">
+      <select id="tsNumerator">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+      </select>
+      <span class="ts-slash">/</span>
+      <select id="tsDenominator">
+        <option value="2">2</option>
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+        <option value="16">16</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="setting-modal-wrap" id="settingModalWrap">
+  <div class="setting-modal">
+    <div class="modal-header">
+      <h3>⚙ 设置</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="settings-grid">
+      <div class="setting-item">
+        <label>音名显示模式</label>
+        <select id="noteLabelMode">
+          <option value="all">全部音名</option>
+          <option value="octaveOnly">仅八度名称</option>
+          <option value="off">不显示音名</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>主题模式</label>
+        <select id="themeSetting">
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>鼠标滑奏</label>
+        <select id="mouseGlideSetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>五线谱显示</label>
+        <select id="staffDisplaySetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>音程显示</label>
+        <select id="intervalDisplaySetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>显示和弦指法时出声</label>
+        <select id="chordShowSoundSetting">
+          <option value="on">开启</option>
+          <option value="off">关闭</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>键盘缩放</label>
+        <input type="range" id="keyScaleSlider" min="0.6" max="2.0" step="0.05" value="1">
+      </div>
+      <div class="setting-item">
+        <label>键盘根音</label>
+        <select id="rootNoteSelect">
+          <option value="0">C</option>
+          <option value="1">Db</option>
+          <option value="2">D</option>
+          <option value="3">Eb</option>
+          <option value="4">E</option>
+          <option value="5">F</option>
+          <option value="6">Gb</option>
+          <option value="7">G</option>
+          <option value="8">Ab</option>
+          <option value="9">A</option>
+          <option value="10">Bb</option>
+          <option value="11">B</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>中央八度</label>
+        <select id="octaveSelect">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>音阶/调式</label>
+        <select id="scaleSelect">
+          <option value="piano">Layout Piano (全键)</option>
+          <option value="major">Major 自然大调</option>
+          <option value="minor">Minor Natural 自然小调</option>
+          <option value="minorHarmonic">Minor Harmonic 和声小调</option>
+          <option value="minorMelodic">Minor Melodic 旋律小调</option>
+          <option value="majorPentatonic">Major Pentatonic 大调五声</option>
+          <option value="minorPentatonic">Minor Pentatonic 小调五声</option>
+          <option value="blues">Blues 布鲁斯</option>
+          <option value="dorian">Dorian 多利亚</option>
+          <option value="mixolydian">Mixolydian 混合利底亚</option>
+          <option value="lydian">Lydian 利底亚</option>
+          <option value="phrygian">Phrygian 弗里几亚</option>
+          <option value="locrian">Locrian 洛克里亚</option>
+          <option value="wholeTone">Whole Tone 全音</option>
+          <option value="diminished">Diminished 减音阶</option>
+        </select>
+      </div>
+
+      <!-- ========== 声音设计：音量 ========== -->
+      <div class="setting-item col-full">
+        <h4 class="section-title">🔊 音量</h4>
+      </div>
+      <div class="setting-item">
+        <label>节拍器音量 <span id="metroVolumeDb">0.0 dB</span></label>
+        <input type="range" id="metroVolumeSlider" min="-30" max="6" step="0.5" value="0">
+      </div>
+      <div class="setting-item">
+        <label>总音量 <span id="masterVolumeDb">0.0 dB</span></label>
+        <input type="range" id="masterVolumeSlider" min="-40" max="6" step="0.5" value="0">
+      </div>
+
+      <!-- ========== 声音设计：节拍器音色 ========== -->
+      <div class="setting-item col-full">
+        <h4 class="section-title">🥁 节拍器音色</h4>
+      </div>
+      <div class="setting-item col-full">
+        <label>音色预设</label>
+        <select id="metroToneSelect" style="width:100%">
+          <option value="ableton">Ableton Live Click (默认)</option>
+          <option value="flstudio">FL Studio Beep</option>
+          <option value="membrane">默认 (Membrane Kick)</option>
+          <option value="wood">木质响棒 Wood Block</option>
+          <option value="cowbell">金属牛铃 Cowbell</option>
+        </select>
+      </div>
+
+      <!-- ========== 声音设计：AHDSR 采样包络（控制音色 Sampler） ========== -->
+      <div class="setting-item col-full">
+        <div class="section-title-row">
+          <h4 class="section-title">📈 采样包络 AHDSR <small style="font-weight:400;opacity:.6">(控制音色 Sampler)</small></h4>
+          <label class="inline-switch">
+            <input type="checkbox" id="adsrCanvasToggle" checked>
+            <span>显示图形</span>
+          </label>
+        </div>
+        <div class="adsr-env-wrap" id="adsrEnvWrap">
+          <canvas id="adsrEnvCanvas" width="560" height="220"></canvas>
+          <div class="adsr-knob-row">
+            <div class="knob-box">
+              <label>ATTACK</label>
+              <input type="range" id="adsrAttack" min="0.001" max="2" step="0.001" value="0.005">
+              <div class="knob-value" id="adsrAttackVal">5.0 ms</div>
+            </div>
+            <div class="knob-box">
+              <label>HOLD</label>
+              <input type="range" id="adsrHold" min="0" max="1" step="0.001" value="0">
+              <div class="knob-value" id="adsrHoldVal">0.0 ms</div>
+            </div>
+            <div class="knob-box">
+              <label>DECAY</label>
+              <input type="range" id="adsrDecay" min="0.001" max="3" step="0.001" value="0.6">
+              <div class="knob-value" id="adsrDecayVal">600 ms</div>
+            </div>
+            <div class="knob-box">
+              <label>SUSTAIN</label>
+              <input type="range" id="adsrSustain" min="0" max="1" step="0.005" value="0.75">
+              <div class="knob-value" id="adsrSustainVal">75.0 %</div>
+            </div>
+            <div class="knob-box">
+              <label>RELEASE</label>
+              <input type="range" id="adsrRelease" min="0.005" max="3" step="0.001" value="0.3">
+              <div class="knob-value" id="adsrReleaseVal">300 ms</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 声音设计：效果器机架（可自由添加/移除/排序） ========== -->
+      <div class="setting-item col-full">
+        <div class="section-title-row">
+          <h4 class="section-title">🎚 效果器机架 <small style="font-weight:400;opacity:.6">(串在节拍器链上)</small></h4>
+          <button id="fxResetBtn" class="btn-mini">↺ 重置</button>
+        </div>
+        <div id="fxRack" class="fx-rack"><!-- 效果单元由 JS 动态渲染 --></div>
+        <div class="fx-add-row">
+          <select id="fxAddSelect"></select>
+          <button id="fxAddBtn" class="btn-mini">＋ 添加效果</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="panel info-panel">
+  <div class="left-info">
+    <div class="info-line">MIDI设备状态：<span id="midiStatus">未连接</span></div>
+    <div class="row">
+      <label>MIDI设备：</label>
+      <select id="midiDeviceSelect"></select>
+      <button id="refreshMidiBtn">刷新MIDI</button>
+    </div>
+    <div class="row">
+      <label>音色选择：</label>
+      <select id="toneSelect">
+        <option value="piano" selected>钢琴</option>
+        <option value="electric_piano">电钢琴</option>
+        <option value="synth">合成器</option>
+        <option value="guitar">吉他</option>
+      </select>
+    </div>
+    <div class="chord-display" id="chordDisplay">音名 / 和弦：无</div>
+    <div class="interval-display" id="intervalDisplay">音程：无</div>
+    <div class="interval-text" id="chordIntervalDisplay"></div>
+  </div>
+  <div class="staff-box" id="staffBox">
+    <canvas id="staffCanvas"></canvas>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <label>和弦查询：</label>
+    <select id="chordRoot"></select>
+    <select id="chordType">
+      <option value="maj">Major</option>
+      <option value="maj7">Major7</option>
+      <option value="min">Minor</option>
+      <option value="min7">Minor7</option>
+      <option value="7">Dominant7</option>
+      <option value="dim">Diminished</option>
+      <option value="aug">Augmented</option>
+    </select>
+    <select id="chordOctave"></select>
+    <button id="showChordBtn">显示和弦指法</button>
+  </div>
+  <div class="chord-info" id="chordInfoBar"></div>
+</div>
+
+<!-- 导航条 -->
+<div class="keyboard-nav" id="keyboardNav">
+  <div class="nav-viewport" id="navViewport">
+    <div class="nav-handle nav-handle-left"></div>
+    <div class="nav-handle nav-handle-right"></div>
+  </div>
+</div>
+
+
+<div class="keyboard-wrap" id="keyboardWrap">
+  <div class="keyboard" id="keyboardEl"></div>
+</div>
+
+<script>
+// ========== 基础常量 ==========
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const DEGREE_MAP = [0,0,1,1,2,3,3,4,4,5,5,6];
+const MIDI_MIN = 21;
+const MIDI_MAX = 108;
+const WHITE_KEY_BASE = 28;
+const BLACK_KEY_BASE = 18;
+const MIDDLE_C_MIDI = 60;
+
+const CHORD_INTERVALS = {
+  maj:[0,4,7],
+  maj7:[0,4,7,11],
+  min:[0,3,7],
+  min7:[0,3,7,10],
+  7:[0,4,7,10],
+  dim:[0,3,6],
+  aug:[0,4,8]
+};
+const CHORD_INFO = {
+  maj:  { name: "大三和弦", stack: "大三度 + 小三度", intervals: ["根音", "大三度", "纯五度"], desc: "底部大三度、上方叠小三度，色彩明亮、坚定" },
+  maj7: { name: "大七和弦", stack: "大三度 + 小三度 + 大三度", intervals: ["根音", "大三度", "纯五度", "大七度"], desc: "大三和弦上方再叠大三度（根音到七音为大七度），色彩柔美、朦胧，常见于爵士" },
+  min:  { name: "小三和弦", stack: "小三度 + 大三度", intervals: ["根音", "小三度", "纯五度"], desc: "底部小三度、上方叠大三度，色彩柔和、暗淡" },
+  min7: { name: "小三七和弦", stack: "小三度 + 大三度 + 小三度", intervals: ["根音", "小三度", "纯五度", "小七度"], desc: "小三和弦上方再叠大三度（根音到七音为小七度），色彩温和、松弛，常见于爵士与流行" },
+  7:    { name: "属七和弦", stack: "大三度 + 小三度 + 小三度", intervals: ["根音", "大三度", "纯五度", "小七度"], desc: "大三和弦上方叠小三度（根音到七音为小七度），属功能强烈，倾向解决到主和弦" },
+  dim:  { name: "减三和弦", stack: "小三度 + 小三度", intervals: ["根音", "小三度", "减五度"], desc: "两个小三度叠置，音响紧张、不安定，通常需要解决" },
+  aug:  { name: "增三和弦", stack: "大三度 + 大三度", intervals: ["根音", "大三度", "增五度"], desc: "两个大三度叠置，音响扩张、悬浮不定" }
+};
+
+const NOTE_VALUES = [
+  { name: "whole", min: 1600, filled: false, stem: false, flags: 0 },
+  { name: "half", min: 750, filled: false, stem: true, flags: 0 },
+  { name: "quarter", min: 260, filled: true, stem: true, flags: 0 },
+  { name: "eighth", min: 110, filled: true, stem: true, flags: 1 },
+  { name: "sixteenth", min: 0, filled: true, stem: true, flags: 2 }
+];
+
+const INTERVAL_NAMES = [
+  "纯一度", "小二度", "大二度", "小三度", "大三度",
+  "纯四度", "增四度", "纯五度", "小六度", "大六度",
+  "小七度", "大七度", "纯八度"
+];
+
+const SCALES = {
+  piano: [0,1,2,3,4,5,6,7,8,9,10,11],
+  major: [0,2,4,5,7,9,11],
+  minor: [0,2,3,5,7,8,10],
+  minorHarmonic: [0,2,3,5,7,8,11],
+  minorMelodic: [0,2,3,5,7,9,11],
+  majorPentatonic: [0,2,4,7,9],
+  minorPentatonic: [0,3,5,7,10],
+  blues: [0,3,5,6,7,10],
+  dorian: [0,2,3,5,7,9,10],
+  mixolydian: [0,2,4,5,7,9,10],
+  lydian: [0,2,4,6,7,9,11],
+  phrygian: [0,1,3,5,7,8,10],
+  locrian: [0,1,3,5,6,8,10],
+  wholeTone: [0,2,4,6,8,10],
+  diminished: [0,2,3,5,6,8,9,11]
+};
+
+// FL Studio 完整键盘映射
+const KEY_MAP = {
+  'KeyZ': 0,   'KeyS': 1,
+  'KeyX': 2,   'KeyD': 3,
+  'KeyC': 4,
+  'KeyV': 5,   'KeyF': 6,
+  'KeyB': 7,   'KeyH': 8,
+  'KeyN': 9,   'KeyJ': 10,
+  'KeyM': 11,
+  'KeyQ': 12,  'Digit2': 13,
+  'KeyW': 14,  'Digit3': 15,
+  'KeyE': 16,
+  'KeyR': 17,  'Digit5': 18,
+  'KeyT': 19,  'Digit6': 20,
+  'KeyY': 21,  'Digit7': 22,
+  'KeyU': 23,
+  'Comma': 12,      // ,  C5
+  'Semicolon': 13,  // ;  C#5
+  'Period': 14,     // .  D5
+  'KeyL': 15,      // L  D#5
+  'Slash': 16,      // /  E5
+  'KeyI': 24,  'Digit9': 25,
+  'KeyO': 26,  'Digit0': 27,
+  'KeyP': 28,  'Equal': 29,
+  'BracketLeft': 29,
+  'BracketRight': 31
+};
+
+const STAFF_LINE_SPACE = 11;
+const NOTE_HEAD_W = 9;
+const NOTE_HEAD_H = 6;
+const STEM_LEN = 26;
+const FLAG_GAP = 4;
+const PIXELS_PER_BEAT = 30;
+
+let synth = null;
+// ============================================================
+// 声音设计系统：节拍器音色 / ADSR+Hold / 效果链 / 音量控制
+// ============================================================
+let audioReady = false;
+let metroRepeatId = null;      // Tone.Transport.scheduleRepeat 返回的 ID（取消循环用）
+
+// --- 音量节点链：
+// 节拍器: metroSound.synth → [效果器机架 fxRack] → metroGain → masterGain → destination
+// 音色:   synth(Sampler/Synth) → instEnvGain(AHDSR包络) → masterGain → destination
+let metroGain = null;       // 节拍器独立音量 (dB 转换为 linear)
+let masterGain = null;      // 总音量
+let instEnvGain = null;     // 音色采样 AHDSR 包络 Gain（音量自动化挂在这里）
+
+// 当前节拍器音色对象（每次换音色 dispose 旧的）
+let metroSound = null;      // { synth, presetKey, noise (可选), playClick(freq,time,accent) }
+const metroCurrentPreset = { key: "ableton" }; // 当前选中的音色key
+
+// --- AHDSR 采样包络参数：控制"音色选择"里的 Sampler/Synth 采样音量
+// （节拍器 click 用固定的 metroClickEnv，不走这套旋钮）
+let metroEnv = {
+  attack: 0.005,   // s (Attack)   起音
+  hold: 0.0,       // s (Hold)     电平保持
+  decay: 0.6,      // s (Decay)    衰减到 Sustain
+  sustain: 0.75,   // 0-1          持续电平（按住琴键时的音量）
+  release: 0.3     // s (Release)  松键后的释放
+};
+
+// 节拍器 click 专用固定包络（AHDSR 旋钮控制的是音色采样，与节拍器无关）
+//   attack / release 调长到数毫秒量级：避免极短 attack=1ms 造成"数字阶跃"的 DC 跳变，表现为"啪嗒"声
+const metroClickEnv = { attack: 0.005, decay: 0.06, sustain: 0.0005, release: 0.08 };
+
+// --- 效果器机架：效果类型定义 + 默认参数
+const FX_NAMES = {
+  filter: "Filter 截频", delay: "Delay 延迟", reverb: "Reverb 混响",
+  distortion: "Distortion 失真", compressor: "Compressor 压缩",
+  chorus: "Chorus 合唱", phaser: "Phaser 相位"
+};
+const FX_DEFAULT_PARAMS = {
+  filter:     { on: true,  type: "lowpass", freq: 8000, q: 0.5 }, // 降低高频click毛刺，更柔和的阻尼
+  delay:      { on: true,  delayTime: 0.20, feedback: 0.15, wet: 0.25 },
+  reverb:     { on: true,  decay: 1.8, wet: 0.25 },
+  distortion: { on: true,  amount: 0.3 },
+  compressor: { on: true,  threshold: -24, ratio: 2.5, attack: 0.010, release: 0.20 }, // 默认更温和：不把短促click的瞬态压出"啪"
+  chorus:     { on: true,  rate: 1.5, depth: 0.5, wet: 0.3 },
+  phaser:     { on: true,  rate: 0.5, octaves: 2, baseFreq: 350, wet: 0.3 }
+};
+// 机架状态：[{ type, params, node }]，数组顺序 = 信号链顺序
+let fxRack = [ { type: "filter" }, { type: "compressor" } ];
+
+// --- 节拍器音色预设（模仿 Ableton / FL Studio 的经典 click）
+const metroPresets = {
+  membrane: {
+    name: "默认 (Membrane Kick)",
+    type: "membrane",
+    base: { pitchDecay: 0.05, octaves: 6, oscillator: { type: "sine" } },
+    accentFreq: 880,
+    normalFreq: 440,
+  },
+  ableton: {
+    name: "Ableton Live Click",
+    type: "ableton",
+    // Ableton 风格：短促高频正弦+白噪点击，强拍略高
+    accentFreq: 1760,  // A6
+    normalFreq: 880,   // A5
+    noiseGain: 0.25,   // 噪声比例（点击感）
+  },
+  flstudio: {
+    name: "FL Studio Beep",
+    type: "flstudio",
+    // FL Studio 风格：更亮的方波+更短包络
+    accentFreq: 2093,  // C7
+    normalFreq: 1046,  // C6
+    noiseGain: 0.15,
+  },
+  wood: {
+    name: "木质响棒 (Wood Block)",
+    type: "wood",
+    accentFreq: 2200,
+    normalFreq: 1100,
+    noiseGain: 0.45,
+  },
+  cowbell: {
+    name: "金属牛铃 (Cowbell)",
+    type: "cowbell",
+    accentFreq: 587,   // D5
+    normalFreq: 293,   // D4
+    noiseGain: 0.3,
+  }
+};
+
+// --- UI 设置开关
+const uiSettings = {
+  adsrPanelExpanded: true,   // 设置里ADSR图形/面板是否展开
+  effectsPanelExpanded: false, // 设置里效果面板是否展开
+  metroVolumeDb: 0,          // 节拍器音量 dB（相对 1.0 = 0dB）
+  masterVolumeDb: 0          // 主音量 dB
+};
+
+// dB → linear 转换
+function dbToLinear(db){ return Math.pow(10, db / 20); }
+
+// 设置节拍器音量（dB）
+function setMetroVolume(db){
+  uiSettings.metroVolumeDb = db;
+  if(metroGain) metroGain.gain.value = dbToLinear(db);
+  const el = document.getElementById("metroVolumeDb");
+  if(el) el.textContent = (db > 0 ? "+" : "") + db.toFixed(1) + " dB";
+}
+// 设置总音量（dB）
+function setMasterVolume(db){
+  uiSettings.masterVolumeDb = db;
+  if(masterGain) masterGain.gain.value = dbToLinear(db);
+  const el = document.getElementById("masterVolumeDb");
+  if(el) el.textContent = (db > 0 ? "+" : "") + db.toFixed(1) + " dB";
+}
+
+// ====================================================================
+// ⚡ 立即初始化节拍器音频节点（不等用户手势）
+// Tone.Gain / Tone.Filter / Tone.Delay / Tone.Synth 等 Node 的创建
+//   **不依赖 AudioContext 处于 running 状态**，脚本加载阶段即可 new 出来
+// 避免 buildMetroSound 开头 if(!masterGain)return null 直接返回 null。
+// Tone.start() 仍在用户点击 Play/键盘时通过 initAudio() 解锁播放。
+// ====================================================================
+(function eagerInitMetroAudioNodes(){
+  try{
+    if(typeof Tone === "undefined" || Tone === null) return;
+    if(!masterGain){
+      masterGain = new Tone.Gain(dbToLinear(uiSettings.masterVolumeDb));
+      masterGain.toDestination();
+    }
+    if(!metroGain){
+      metroGain = new Tone.Gain(dbToLinear(uiSettings.metroVolumeDb));
+    }
+    if(typeof rebuildFxChain === "function"){
+      rebuildFxChain(); // 创建机架效果节点（不需要 AudioContext running）
+    }
+    if(!metroSound && typeof buildMetroSound === "function"){
+      buildMetroSound(metroCurrentPreset.key || "ableton");
+    }
+  }catch(e){
+    // 若 Tone.Context 尚未就绪（极端情况），等用户交互时 initAudio 会再次兜底
+    console.warn("[eagerInitMetroAudioNodes] skipped:", e && e.message || e);
+  }
+})();
+
+// 钢琴/音色选择下拉的 Tone.js 合成器预设
+const tonePresets = {
+  piano:{type:'sampler',urls:{"C4":"https://tonejs.github.io/audio/salamander/C4.mp3"}},
+  electric_piano:{type:'synth',oscillator:{type:'triangle'},envelope:{attack:0.02,decay:0.2,sustain:0.3,release:0.8}},
+  synth:{type:'synth',oscillator:{type:'sawtooth'},envelope:{attack:0.01,decay:0.3,sustain:0.4,release:0.6}},
+  guitar:{type:'synth',oscillator:{type:'triangle'},envelope:{attack:0.05,decay:0.4,sustain:0.2,release:1.2}}
+};
+
+let state = {
+  activeNotes: new Map(),
+  midiAccess: null,
+  selectedMidiDevice: null,
+  noteLabelMode: "all",
+  themeMode: "system",
+  mouseGlideEnabled: true,
+  staffEnabled: true,
+  intervalEnabled: true,
+  chordShowSound: true,      // 显示和弦指法时是否出声
+  isPlaying: false,
+  tapTimes: [],
+  staffOffset: 0,
+  rootShift: 0,
+  octaveShift: 0,
+  scaleType: 'piano',
+  scaleNotes: new Set(),
+  chordDisplayState: null,   // 和弦指法展示状态：null=未显示；{rootIdx,type,oct,list,chNotes}
+  intDragStep: 1,        // BPM整数位拖拽时的增减步长
+  intDragTimer: null,    // BPM整数位拖拽定时器
+  decDragTimer: null     // BPM小数位拖拽定时器
+};
+
+let isMouseDown = false;
+let keyPressed = {};
+let staffCanvas, staffCtx;
+let staffNotes = [];
+let chordStaffNotes = [];
+
+let keyScale = 1;
+const MIN_SCALE = 0.6;
+const MAX_SCALE = 2.0;
+let whiteKeyCount = 0;
+
+let navState = { mode:null, startX:0, startScrollLeft:0, startScale:1, startRight:0 };
+
+const $ = s => document.querySelector(s);
+
+
+function midiToNote(midi){
+  const idx = midi % 12;
+  const oct = Math.floor(midi / 12) - 1;
+  return { name: NOTE_NAMES[idx], octave: oct, full: `${NOTE_NAMES[idx]}${oct}` };
+}
+function isBlackKey(midi){
+  return [1,3,6,8,10].includes(midi % 12);
+}
+function getAccidental(midi){
+  return [1,3,6,8,10].includes(midi % 12) ? "♯" : "";
+}
+function getDiatonicDegree(midi){
+  const octave = Math.floor(midi / 12) - 1;
+  return octave * 7 + DEGREE_MAP[midi % 12];
+}
+function calcIntervalName(m1, m2){
+  const semitones = Math.abs(m1 - m2);
+  const octaves = Math.floor(semitones / 12);
+  const remain = semitones % 12;
+  const base = INTERVAL_NAMES[remain];
+  if(octaves === 0) return base;
+  if(remain === 0) return `${octaves}个纯八度`;
+  return `${octaves}个八度 + ${base}`;
+}
+
+function updateBpmDisplay(){
+  // 解决浮点尾差导致 147.99999999 显示成 147.100 的问题：先按小数点后2位 round
+  const rounded = Math.round(Tone.Transport.bpm.value * 100) / 100;
+  const bpm = rounded;
+  $("#bpmInt").textContent = Math.floor(bpm);
+  const dec = Math.round((bpm - Math.floor(bpm)) * 100);
+  $("#bpmDec").textContent = dec.toString().padStart(2, '0');
+}
+function setBpm(v){
+  Tone.Transport.bpm.value = Math.max(20, Math.min(300, v));
+  updateBpmDisplay();
+}
+
+// 根据分母数字转为 Tone.js 的音符时长字符串
+function getBeatUnit(denominator){
+  switch(denominator){
+    case 2:  return "2n";
+    case 8:  return "8n";
+    case 16: return "16n";
+    case 4:
+    default: return "4n";
+  }
+}
+
+// 按拍号分子数动态渲染节拍指示灯
+function renderBeatIndicators(num){
+  const container = $("#beatIndicators");
+  container.innerHTML = "";
+  for(let i = 0; i < num; i++){
+    const span = document.createElement("span");
+    span.className = "beat-light";
+    container.appendChild(span);
+  }
+}
+
+// ============================================================
+// 节拍器音频：效果链 / 音色构建 / 包络合成器工厂
+// ============================================================
+
+// ============================================================
+// 效果器机架：动态创建/重建节点，数组顺序 = 信号链顺序
+// ============================================================
+// （metroClickEnv 已声明在顶部 metroEnv 旁）
+
+// 由机架单元参数创建 Tone.js 效果节点
+function createFxNode(type, p){
+  switch(type){
+    case "filter":     return new Tone.Filter({ type: p.type, frequency: p.freq, Q: p.q });
+    case "delay":      return new Tone.FeedbackDelay({ delayTime: p.delayTime, feedback: p.feedback, wet: p.on ? p.wet : 0 });
+    case "reverb":     {
+      const r = new Tone.Reverb({ decay: p.decay, wet: p.on ? p.wet : 0 });
+      r.generate().catch(()=>{});
+      return r;
+    }
+    case "distortion": return new Tone.Distortion({ distortion: p.amount, oversample: "2x", wet: p.on ? 1 : 0 });
+    case "compressor": return new Tone.Compressor({ threshold: p.threshold, ratio: p.ratio, attack: p.attack, release: p.release, knee: 10, wet: p.on ? 1 : 0 });
+    case "chorus":     return new Tone.Chorus({ frequency: p.rate, delayTime: 3.5, depth: p.depth, wet: p.on ? p.wet : 0 }).start();
+    case "phaser":     return new Tone.Phaser({ frequency: p.rate, octaves: p.octaves, baseFrequency: p.baseFreq, wet: p.on ? p.wet : 0 });
+  }
+  return new Tone.Gain(1); // 兜底直通
+}
+
+// 开关/参数变化时同步到节点（Filter off 用 allpass 旁路；其余 wet 类 off 时 wet=0）
+function applyFxUnitBypass(unit){
+  const n = unit.node, p = unit.params;
+  if(!n) return;
+  try{
+    if(unit.type === "filter"){
+      n.type = p.on ? p.type : "allpass"; // Biquad 无 wet，allpass 直通
+      if(p.on){ n.frequency.value = p.freq; n.Q.value = p.q; }
+    }else if(unit.type === "delay"){
+      n.delayTime.value = p.delayTime; n.feedback.value = p.feedback;
+      n.wet.value = p.on ? p.wet : 0;
+    }else if(unit.type === "reverb"){
+      n.wet.value = p.on ? p.wet : 0;
+      try{ n.decay = p.decay; }catch(e2){}
+    }else if(unit.type === "distortion"){
+      n.distortion = p.amount; n.wet.value = p.on ? 1 : 0;
+    }else if(unit.type === "compressor"){
+      n.threshold.value = p.threshold; n.ratio.value = p.ratio;
+      n.attack.value = p.attack; n.release.value = p.release;
+      n.wet.value = p.on ? 1 : 0;
+    }else if(unit.type === "chorus"){
+      n.frequency.value = p.rate; try{ n.depth = p.depth; }catch(e2){}
+      n.wet.value = p.on ? p.wet : 0;
+    }else if(unit.type === "phaser"){
+      n.frequency.value = p.rate; n.octaves = p.octaves; n.baseFrequency = p.baseFreq;
+      n.wet.value = p.on ? p.wet : 0;
+    }
+  }catch(e){}
+}
+
+// 重建整个效果链（添加/移除/排序/重置后调用）
+function rebuildFxChain(){
+  // 销毁旧节点
+  fxRack.forEach(u => { try{ if(u.node) u.node.dispose(); }catch(e){} u.node = null; });
+  // 补齐参数 + 创建新节点
+  fxRack.forEach(u => {
+    if(!u.params) u.params = JSON.parse(JSON.stringify(FX_DEFAULT_PARAMS[u.type] || {}));
+    u.node = createFxNode(u.type, u.params);
+    applyFxUnitBypass(u);
+  });
+  // 重连节拍器音色：metroSound.synth → fx1 → … → metroGain → masterGain
+  if(metroSound && metroSound.synth && metroGain){
+    try{ metroSound.synth.disconnect(); }catch(e){}
+    const nodes = fxRack.map(u => u.node).filter(Boolean);
+    metroSound.synth.chain(...nodes, metroGain, masterGain);
+  }
+}
+
+// 把节拍器合成器按 rack 顺序连接到 metroGain（buildMetroSound 内调用）
+function connectMetroSynthToChain(synthNode){
+  const nodes = fxRack.map(u => u.node).filter(Boolean);
+  synthNode.chain(...nodes, metroGain, masterGain);
+  return synthNode;
+}
+
+// 构建节拍器 click 的合成器包络（固定值，不走 AHDSR 旋钮）
+function buildSynthEnvelope(){
+  return {
+    attack: metroClickEnv.attack,
+    decay: metroClickEnv.decay,
+    sustain: metroClickEnv.sustain,
+    release: metroClickEnv.release,
+    attackCurve: "linear",
+    decayCurve: "exponential",
+    releaseCurve: "exponential"
+  };
+}
+
+// 销毁旧音色
+function disposeMetroSound(){
+  if(!metroSound) return;
+  try{
+    if(metroSound.synth && metroSound.synth.dispose) metroSound.synth.dispose();
+    if(metroSound.noise && metroSound.noise.dispose) metroSound.noise.dispose();
+    if(metroSound.noiseGain && metroSound.noiseGain.dispose) metroSound.noiseGain.dispose();
+    if(metroSound.extraSynth && metroSound.extraSynth.dispose) metroSound.extraSynth.dispose();
+  }catch(e){}
+  metroSound = null;
+}
+
+// 根据预设 key 创建新的节拍器音色
+function buildMetroSound(presetKey){
+  if(!Tone || !masterGain) return null;
+  disposeMetroSound();
+  metroCurrentPreset.key = presetKey;
+  const P = metroPresets[presetKey] || metroPresets.ableton;
+  const env = buildSynthEnvelope();
+  const newSound = { presetKey, playClick(){} };
+
+  if(P.type === "membrane"){
+    // 原默认 MembraneSynth（kick/tom 声）
+    const s = new Tone.MembraneSynth({
+      pitchDecay: P.base.pitchDecay,
+      octaves: P.base.octaves,
+      oscillator: P.base.oscillator,
+      envelope: env
+    });
+    connectMetroSynthToChain(s);
+    newSound.synth = s;
+    newSound.playClick = function(freq, time, accent){
+      const f = accent ? P.accentFreq : P.normalFreq;
+      s.triggerAttackRelease(f, "32n", time, accent ? 1.0 : 0.85);
+    };
+
+  }else if(P.type === "ableton" || P.type === "flstudio" || P.type === "wood" || P.type === "cowbell"){
+    // 通用 click 类：主 oscillator + 可选的"click click"短噪声（更像硬件节拍器的机械声）
+    let oscType = "sine";
+    if(P.type === "flstudio") oscType = "square"; // FL 风格更亮方波
+    if(P.type === "wood")     oscType = "triangle"; // 木质更暖
+    if(P.type === "cowbell")  oscType = "square2";  // 牛铃 FM 感（square2 近似）
+
+    const s = new Tone.Synth({
+      oscillator: { type: oscType },
+      envelope: env
+    });
+    connectMetroSynthToChain(s);
+    newSound.synth = s;
+
+    // 附加噪声：模拟"咔哒"瞬态（非鸣响部分）
+    if(P.noiseGain > 0){
+      const n = new Tone.Noise({ type: "white" });
+      // ⚠️关键：Gain初始值必须=0（静音）。否则Noise.start()后在AudioContext解锁时
+      //   会立刻以 P.noiseGain (e.g. 0.25 = 25%) 音量持续输出白噪声（用户反馈"背景有噪音"）。
+      //   仅在 playClick 被触发时，通过 setValueAtTime + exponentialRamp 瞬时推上去再下来。
+      const ng = new Tone.Gain(0);
+      // Noise → Gain → metroGain → masterGain（不经过效果器，避免咔哒被 Delay/Reverb 拖尾）
+      n.chain(ng, metroGain, masterGain);
+      n.start();
+      n.stop("+600"); // 600秒足够，若用户长时间连续使用则下一次重建音色时 dispose 重建
+      newSound.noise = n;
+      newSound.noiseGain = ng;
+      newSound._noiseTargetGain = P.noiseGain;
+    }
+
+    newSound.playClick = function(freq, time, accent){
+      const f = accent ? P.accentFreq : P.normalFreq;
+      const vel = accent ? 1.0 : 0.82;
+      // 主音（鸣响）
+      s.triggerAttackRelease(f, `${Math.max(0.01, env.attack + env.decay + env.release)}s`, time, vel);
+      // 噪声咔哒（如果配置了）
+      if(newSound.noise && newSound.noiseGain){
+        const ng = newSound.noiseGain;
+        // 噪声电平略降：之前 0.25 / 0.45 过大，高频白噪声瞬态易被听成"啪嗒"
+        const target = (newSound._noiseTargetGain || P.noiseGain) * (accent ? 0.6 : 0.48) * 0.7;
+        const clickDur = accent ? 0.018 : 0.014;   // 咔哒持续 14-18ms（更短但软收尾）
+        const up = 0.002;                           // 2ms 上去（避免 500μs 阶跃产生高频 click）
+        // 不要 cancelScheduledValues 后硬塞 setValueAtTime(0)，那样会把前一次
+        // click 尚未完成衰减的包络瞬间砍断 → 产生相位不连续的"搭"一声。
+        // 而是在上一轮包络基础上平滑续接：
+        try{
+          const g = ng.gain;
+          // cancelSchedule 只取消未来的，不把当前 gain 重置 → 然后用 linearRampTo 平滑续接
+          g.cancelScheduledValues(time);
+          // 读"当前"实际值，从这个值开始向上 ramp（避免 0→target 硬阶跃）
+          const cur = Math.max(0.00001, Number(g.value) || 0.00001);
+          g.setValueAtTime(cur, time);
+          g.linearRampToValueAtTime(Math.max(0.0001, target), time + up);
+          g.linearRampToValueAtTime(0.00001, time + clickDur);
+          // 归零后停留：保证没有任何持续白噪声
+          g.setValueAtTime(0.00001, time + clickDur);
+        }catch(e){}
+      }
+    };
+  }
+
+  metroSound = newSound;
+  // 同步音色下拉选中状态（如果 UI 已渲染）
+  const sel = document.getElementById("metroToneSelect");
+  if(sel && sel.value !== presetKey) sel.value = presetKey;
+  return newSound;
+}
+
+// 把 AHDSR 旋钮同步到"音色采样"通道：
+// Attack/Hold/Decay/Sustain 在 triggerNoteOn 时做 gain 自动化（见 scheduleInstAttack），
+// Release 决定松键尾巴 → 需要让 Sampler/Synth 自身的 release ≥ R，否则采样会提前被切。
+function applySamplerADSR(){
+  if(!synth) return;
+  try{
+    if(synth.release !== undefined){            // Tone.Sampler：release 是顶层属性
+      synth.release = Math.max(0.05, metroEnv.release);
+    }else if(synth.envelope){                   // Tone.Synth 系
+      synth.envelope.release = Math.max(0.02, metroEnv.release);
+    }
+  }catch(e){}
+}
+
+// ============================================================
+// ADSR 画布绘制（Serum风格 ENV）+ 鼠标/触摸拖拽节点
+// ============================================================
+// 共享几何计算：绘制与拖拽命中共用一套坐标映射
+function adsrLayout(W, H){
+  const padL = 12, padR = 12, padT = 12, padB = 18;
+  const A = metroEnv.attack, Hl = metroEnv.hold, D = metroEnv.decay;
+  const S = metroEnv.sustain, R = metroEnv.release;
+  const susViz = Math.max(0.05, (A + Hl + D + R) * 0.8); // Sustain 视觉段
+  const totalT = A + Hl + D + susViz + R;
+  const xMax = W - padL - padR, yMax = H - padT - padB;
+  return {
+    padL, padT, padB, A, Hl, D, S, R, susViz, totalT, xMax, yMax,
+    t:    v  => padL + (v / totalT) * xMax,
+    y:    a  => H - padB - Math.max(0, Math.min(1, a)) * yMax,
+    tInv: px => (px - padL) / xMax * totalT,
+    yInv: py => 1 - (py - padT) / yMax
+  };
+}
+// 6个关键点。index：0=起点 1=A顶 2=H尾 3=D尾(可拖Y=改Sustain) 4=S水平(拖Y) 5=R尾
+function adsrPoints(g){
+  return [
+    { x: g.t(0),                          y: g.y(0),   label: "S" },
+    { x: g.t(g.A),                        y: g.y(1),   label: "A" },
+    { x: g.t(g.A + g.Hl),                 y: g.y(1),   label: "H" },
+    { x: g.t(g.A + g.Hl + g.D),           y: g.y(g.S), label: "D" },
+    { x: g.t(g.A + g.Hl + g.D + g.susViz),y: g.y(g.S), label: "S" },
+    { x: g.t(g.totalT),                   y: g.y(0),   label: "R" }
+  ];
+}
+let adsrGeom = null; // 最近一次绘制的几何（拖拽用）
+
+function drawAdsrEnv(){
+  const canvas = document.getElementById("adsrEnvCanvas");
+  if(!canvas) return;
+  // 适配 HiDPI
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const cssW = canvas.clientWidth || 560;
+  const cssH = canvas.clientHeight || 200;
+  if(canvas.width !== cssW * dpr || canvas.height !== cssH * dpr){
+    canvas.width = cssW * dpr;
+    canvas.height = cssH * dpr;
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = cssW, H = cssH;
+  const g = adsrLayout(W, H);
+  adsrGeom = g;
+  ctx.clearRect(0, 0, W, H);
+
+  // 画网格
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const x = g.padL + (g.xMax * i / 4);
+    ctx.beginPath(); ctx.moveTo(x, g.padT); ctx.lineTo(x, H - g.padB); ctx.stroke();
+  }
+  for(let i=0;i<=4;i++){
+    const y = g.padT + (g.yMax * i / 4);
+    ctx.beginPath(); ctx.moveTo(g.padL, y); ctx.lineTo(W - 12, y); ctx.stroke();
+  }
+
+  const pts = adsrPoints(g);
+
+  // 填充渐变包络区域
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.lineTo(pts[pts.length-1].x, H - g.padB);
+  ctx.lineTo(pts[0].x, H - g.padB);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, g.padT, 0, H - g.padB);
+  grad.addColorStop(0, "rgba(255, 119, 187, 0.45)");
+  grad.addColorStop(1, "rgba(122, 162, 255, 0.08)");
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // 描边
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.strokeStyle = "#ff77bb";
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+
+  // 节点小圆 + 阶段标签（起点不可拖，画小一点）
+  for(let i = 0; i < pts.length; i++){
+    const p = pts[i];
+    const r = i === 0 ? 3 : 5;
+    ctx.fillStyle = "#0e1320";
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#ff77bb"; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.font = "600 10px sans-serif";
+    ctx.fillText(p.label, p.x - 3, p.y - 8);
+  }
+
+  // X 轴阶段刻度文字
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.font = "10px sans-serif";
+  ctx.fillText("Attack →", g.t(g.A / 2) - 12, H - 4);
+  ctx.fillText("Hold", g.t(g.A + g.Hl / 2) - 10, H - 4);
+  ctx.fillText("Decay", g.t(g.A + g.Hl + g.D / 2) - 14, H - 4);
+  ctx.fillText("Sustain", g.t(g.A + g.Hl + g.D + g.susViz / 2) - 18, H - 4);
+  ctx.fillText("← Release", g.t(g.A + g.Hl + g.D + g.susViz + g.R / 2) - 18, H - 4);
+}
+
+// ---------- 画布拖拽：鼠标 + 触摸（Pointer Events 统一处理） ----------
+(function initAdsrCanvasDrag(){
+  const canvas = document.getElementById("adsrEnvCanvas");
+  if(!canvas) return;
+  let dragIdx = -1;
+
+  function getGeom(){
+    if(adsrGeom) return adsrGeom;
+    const r = canvas.getBoundingClientRect();
+    adsrGeom = adsrLayout(r.width || 560, r.height || 200);
+    return adsrGeom;
+  }
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    return { mx: e.clientX - r.left, my: e.clientY - r.top };
+  }
+  function hitNode(mx, my){
+    const g = getGeom();
+    const pts = adsrPoints(g);
+    for(let i = 1; i < pts.length; i++){ // 起点不可拖
+      if(Math.hypot(pts[i].x - mx, pts[i].y - my) < 16) return i;
+    }
+    return -1;
+  }
+  // 拖拽后把 metroEnv 回写到 5 个旋钮 + 文本 + 重绘 + 应用音频
+  function syncFromEnv(){
+    const map = { adsrAttack:"attack", adsrHold:"hold", adsrDecay:"decay", adsrSustain:"sustain", adsrRelease:"release" };
+    for(const id in map){
+      const el = document.getElementById(id);
+      if(el) el.value = metroEnv[map[id]];
+    }
+    updateAdsrFromUI(); // 读回 range → metroEnv → 标签 → 重绘 → applySamplerADSR
+  }
+
+  canvas.addEventListener("pointerdown", e => {
+    const { mx, my } = pos(e);
+    const idx = hitNode(mx, my);
+    if(idx < 0) return;
+    dragIdx = idx;
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", e => {
+    const { mx, my } = pos(e);
+    if(dragIdx < 0){
+      // 悬停时提示可拖拽
+      canvas.style.cursor = hitNode(mx, my) >= 0 ? "grab" : "default";
+      return;
+    }
+    e.preventDefault();
+    const g = getGeom();
+    const t = Math.max(0, g.tInv(mx));
+    const lvl = Math.max(0, Math.min(1, g.yInv(my)));
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    switch(dragIdx){
+      case 1: // A：水平 = Attack 时长
+        metroEnv.attack = clamp(t, 0.001, 3);
+        break;
+      case 2: // H：与 A 尾的差 = Hold 时长
+        metroEnv.hold = clamp(t - metroEnv.attack, 0, 1);
+        break;
+      case 3: // D：与 H 尾的差 = Decay；垂直 = Sustain 电平
+        metroEnv.decay = clamp(t - metroEnv.attack - metroEnv.hold, 0.001, 3);
+        metroEnv.sustain = lvl;
+        break;
+      case 4: // S：垂直 = Sustain 电平（水平固定为视觉段，不可改）
+        metroEnv.sustain = lvl;
+        break;
+      case 5: // R：与 S 段尾的差 = Release
+        metroEnv.release = clamp(g.totalT - t, 0.005, 3);
+        break;
+    }
+    syncFromEnv();
+  });
+  const endDrag = () => { dragIdx = -1; };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+})();
+
+// 从 UI 控件（range）读值写回 metroEnv + 更新显示 + 重绘 + 应用到 synth
+function updateAdsrFromUI(){
+  metroEnv.attack  = parseFloat(document.getElementById("adsrAttack").value);
+  metroEnv.hold    = parseFloat(document.getElementById("adsrHold").value);
+  metroEnv.decay   = parseFloat(document.getElementById("adsrDecay").value);
+  metroEnv.sustain = parseFloat(document.getElementById("adsrSustain").value);
+  metroEnv.release = parseFloat(document.getElementById("adsrRelease").value);
+
+  document.getElementById("adsrAttackVal").textContent  = (metroEnv.attack  * 1000).toFixed(1) + " ms";
+  document.getElementById("adsrHoldVal").textContent    = (metroEnv.hold    * 1000).toFixed(1) + " ms";
+  document.getElementById("adsrDecayVal").textContent   = (metroEnv.decay   * 1000).toFixed(0) + " ms";
+  document.getElementById("adsrSustainVal").textContent = (metroEnv.sustain * 100).toFixed(1) + " %";
+  document.getElementById("adsrReleaseVal").textContent = (metroEnv.release * 1000).toFixed(0) + " ms";
+
+  drawAdsrEnv();
+  applySamplerADSR(); // AHDSR → 音色采样通道（Sampler/Synth release 同步）
+}
+
+// ============================================================
+// 效果器机架 UI：动态渲染单元卡片 + 参数控件 + 添加/移除/排序
+// ============================================================
+// 每种效果的参数控件定义
+const FX_PARAM_UIS = {
+  filter: [
+    { key:"type", type:"select", label:"类型", options:[["lowpass","LP 低通"],["highpass","HP 高通"],["bandpass","BP 带通"],["notch","Notch 陷波"]] },
+    { key:"freq", type:"range", label:"Cutoff", min:60, max:20000, step:1, fmt:v=>Math.round(v)+" Hz" },
+    { key:"q",    type:"range", label:"Q", min:0.1, max:20, step:0.01, fmt:v=>v.toFixed(2) }
+  ],
+  delay: [
+    { key:"delayTime", type:"range", label:"Time", min:0.001, max:2, step:0.001, fmt:v=>Math.round(v*1000)+" ms" },
+    { key:"feedback",  type:"range", label:"Feedback", min:0, max:0.95, step:0.01, fmt:v=>Math.round(v*100)+" %" },
+    { key:"wet",       type:"range", label:"Mix", min:0, max:1, step:0.01, fmt:v=>Math.round(v*100)+" %" }
+  ],
+  reverb: [
+    { key:"decay", type:"range", label:"Decay", min:0.2, max:10, step:0.1, fmt:v=>v.toFixed(1)+" s" },
+    { key:"wet",   type:"range", label:"Mix", min:0, max:1, step:0.01, fmt:v=>Math.round(v*100)+" %" }
+  ],
+  distortion: [
+    { key:"amount", type:"range", label:"Amount", min:0, max:1, step:0.01, fmt:v=>Math.round(v*100)+" %" }
+  ],
+  compressor: [
+    { key:"threshold", type:"range", label:"Threshold", min:-60, max:0, step:0.5, fmt:v=>v.toFixed(1)+" dB" },
+    { key:"ratio",     type:"range", label:"Ratio", min:1, max:20, step:0.1, fmt:v=>v.toFixed(1)+" : 1" },
+    { key:"attack",    type:"range", label:"Attack", min:0.0001, max:0.2, step:0.0001, fmt:v=>Math.round(v*1000)+" ms" },
+    { key:"release",   type:"range", label:"Release", min:0.005, max:1, step:0.001, fmt:v=>Math.round(v*1000)+" ms" }
+  ],
+  chorus: [
+    { key:"rate",  type:"range", label:"Rate", min:0.05, max:8, step:0.05, fmt:v=>v.toFixed(2)+" Hz" },
+    { key:"depth", type:"range", label:"Depth", min:0, max:1, step:0.01, fmt:v=>Math.round(v*100)+" %" },
+    { key:"wet",   type:"range", label:"Mix", min:0, max:1, step:0.01, fmt:v=>Math.round(v*100)+" %" }
+  ],
+  phaser: [
+    { key:"rate",     type:"range", label:"Rate", min:0.05, max:8, step:0.05, fmt:v=>v.toFixed(2)+" Hz" },
+    { key:"octaves",  type:"range", label:"Octaves", min:1, max:5, step:1, fmt:v=>v.toFixed(0) },
+    { key:"baseFreq", type:"range", label:"Base", min:50, max:2000, step:10, fmt:v=>Math.round(v)+" Hz" },
+    { key:"wet",      type:"range", label:"Mix", min:0, max:1, step:0.01, fmt:v=>Math.round(v*100)+" %" }
+  ]
+};
+
+// 下拉框：只列出机架里还没有的效果类型
+function renderFxAddSelect(){
+  const sel = document.getElementById("fxAddSelect");
+  if(!sel) return;
+  sel.innerHTML = "";
+  Object.keys(FX_DEFAULT_PARAMS).forEach(t => {
+    if(fxRack.some(u => u.type === t)) return;
+    const o = document.createElement("option");
+    o.value = t;
+    o.textContent = FX_NAMES[t];
+    sel.appendChild(o);
+  });
+}
+
+// 渲染整个机架（每次增删/排序/重置后重建 DOM；单元内控件事件就地绑定）
+function renderFxRack(){
+  const rack = document.getElementById("fxRack");
+  if(!rack) return;
+  rack.innerHTML = "";
+  fxRack.forEach((u, idx) => {
+    if(!u.params) u.params = JSON.parse(JSON.stringify(FX_DEFAULT_PARAMS[u.type] || {}));
+    const card = document.createElement("div");
+    card.className = "fx-unit" + (u.params.on ? " on" : "");
+
+    // --- 头部：开关 + 名称 + 排序/移除按钮
+    const head = document.createElement("div");
+    head.className = "fx-unit-head";
+    const lbl = document.createElement("label");
+    lbl.className = "inline-switch";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = !!u.params.on;
+    cb.addEventListener("change", () => {
+      u.params.on = cb.checked;
+      card.classList.toggle("on", cb.checked);
+      applyFxUnitBypass(u);
+    });
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = (idx + 1) + ". " + FX_NAMES[u.type];
+    lbl.appendChild(cb); lbl.appendChild(nameSpan);
+
+    const btns = document.createElement("div");
+    btns.className = "fx-unit-btns";
+    const mkBtn = (txt, title, cls, fn) => {
+      const b = document.createElement("button");
+      b.className = "fx-mini" + (cls ? " " + cls : "");
+      b.textContent = txt; b.title = title;
+      b.addEventListener("click", fn);
+      btns.appendChild(b);
+    };
+    mkBtn("▲", "上移", "", () => { if(idx > 0){ [fxRack[idx-1], fxRack[idx]] = [fxRack[idx], fxRack[idx-1]]; rebuildFxChain(); renderFxRack(); } });
+    mkBtn("▼", "下移", "", () => { if(idx < fxRack.length-1){ [fxRack[idx+1], fxRack[idx]] = [fxRack[idx], fxRack[idx+1]]; rebuildFxChain(); renderFxRack(); } });
+    mkBtn("✕", "移除效果", "fx-del", () => {
+      try{ if(u.node) u.node.dispose(); }catch(e){}
+      fxRack.splice(idx, 1);
+      rebuildFxChain();
+      renderFxRack();
+    });
+    head.appendChild(lbl); head.appendChild(btns);
+    card.appendChild(head);
+
+    // --- 参数区
+    const box = document.createElement("div");
+    box.className = "fx-params";
+    (FX_PARAM_UIS[u.type] || []).forEach(d => {
+      const lab = document.createElement("label");
+      lab.appendChild(document.createTextNode(d.label));
+      const valSpan = document.createElement("span");
+      valSpan.textContent = " " + (d.fmt ? d.fmt(u.params[d.key]) : u.params[d.key]);
+      lab.appendChild(valSpan);
+      if(d.type === "select"){
+        const s = document.createElement("select");
+        d.options.forEach(([v, t]) => {
+          const o = document.createElement("option");
+          o.value = v; o.textContent = t;
+          s.appendChild(o);
+        });
+        s.value = u.params[d.key];
+        s.addEventListener("change", () => { u.params[d.key] = s.value; applyFxUnitBypass(u); });
+        lab.appendChild(s);
+      }else{
+        const r = document.createElement("input");
+        r.type = "range"; r.min = d.min; r.max = d.max; r.step = d.step;
+        r.value = u.params[d.key];
+        r.addEventListener("input", () => {
+          u.params[d.key] = parseFloat(r.value);
+          valSpan.textContent = " " + d.fmt(u.params[d.key]);
+          applyFxUnitBypass(u);
+        });
+        lab.appendChild(r);
+      }
+      box.appendChild(lab);
+    });
+    card.appendChild(box);
+    rack.appendChild(card);
+  });
+  renderFxAddSelect();
+}
+
+// 添加一个效果单元（同类不重复）
+function addFxUnit(type){
+  if(!FX_DEFAULT_PARAMS[type]) return;
+  if(fxRack.some(u => u.type === type)) return;
+  fxRack.push({ type, params: JSON.parse(JSON.stringify(FX_DEFAULT_PARAMS[type])) });
+  rebuildFxChain();
+  renderFxRack();
+}
+
+// 重置机架为默认（Filter + Compressor）
+function resetFxRack(){
+  fxRack = [
+    { type: "filter",     params: JSON.parse(JSON.stringify(FX_DEFAULT_PARAMS.filter)) },
+    { type: "compressor", params: JSON.parse(JSON.stringify(FX_DEFAULT_PARAMS.compressor)) }
+  ];
+  rebuildFxChain();
+  renderFxRack();
+}
+
+// 启动/刷新声音设计子系统（在DOM就绪和设置面板打开时调用一次，用于同步控件值）
+function initSoundDesignUI(){
+  // --- 音量滑块同步（如果当前 setBpm 已调过，则恢复默认0显示即可）
+  const mV = document.getElementById("metroVolumeSlider");
+  if(mV) mV.value = uiSettings.metroVolumeDb;
+  const MV = document.getElementById("masterVolumeSlider");
+  if(MV) MV.value = uiSettings.masterVolumeDb;
+  setMetroVolume(uiSettings.metroVolumeDb);
+  setMasterVolume(uiSettings.masterVolumeDb);
+
+  // --- 同步 ADSR 控件上的默认值（metroEnv 初始值）→ 写回 range.value + 显示文本 + 画 canvas
+  const atk = document.getElementById("adsrAttack");
+  if(atk){
+    atk.value = metroEnv.attack;
+    document.getElementById("adsrHold").value    = metroEnv.hold;
+    document.getElementById("adsrDecay").value   = metroEnv.decay;
+    document.getElementById("adsrSustain").value = metroEnv.sustain;
+    document.getElementById("adsrRelease").value = metroEnv.release;
+    updateAdsrFromUI(); // 计算数值+重绘canvas
+
+    // ADSR 图形 显示/隐藏 开关
+    const tg = document.getElementById("adsrCanvasToggle");
+    tg.checked = !!uiSettings.adsrPanelExpanded;
+    const wrap = document.getElementById("adsrEnvWrap");
+    wrap.style.display = tg.checked ? "flex" : "none";
+  }
+
+  // --- 同步节拍器音色下拉选中项
+  const sel = document.getElementById("metroToneSelect");
+  if(sel) sel.value = metroCurrentPreset.key || "ableton";
+
+  // --- 渲染效果器机架（动态卡片 + 控件 + 信号链就绪）
+  renderFxRack();
+
+  // HiDPI canvas 按显示尺寸绘制，窗口变化要重绘（只绑一次）
+  if(!initSoundDesignUI._resizeBound){
+    initSoundDesignUI._resizeBound = true;
+    window.addEventListener("resize", () => { try{ drawAdsrEnv(); }catch(e){} });
+  }
+}
+
+// 停止节拍器后3秒熄灭指示灯的定时器
+let beatLightsFadeTimer = null;
+
+function clearBeatLightsFadeTimer(){
+  if(beatLightsFadeTimer !== null){
+    clearTimeout(beatLightsFadeTimer);
+    beatLightsFadeTimer = null;
+  }
+}
+
+function extinguishBeatLights(){
+  document.querySelectorAll('.beat-light').forEach(l => {
+    l.classList.remove("active", "strong");
+  });
+}
+
+function scheduleBeatLightsOff(delayMs = 3000){
+  clearBeatLightsFadeTimer();
+  beatLightsFadeTimer = setTimeout(() => {
+    extinguishBeatLights();
+    beatLightsFadeTimer = null;
+  }, delayMs);
+}
+
+// 按当前拍号重新注册节拍器循环（更新间隔单位+重拍判断）
+function rebuildMetroRepeat(){
+  if(metroRepeatId !== null){
+    Tone.Transport.clear(metroRepeatId);
+    metroRepeatId = null;
+  }
+  const num = parseInt($("#tsNumerator").value);   // 每小节拍数（分子）
+  const den = parseInt($("#tsDenominator").value); // 以几分音符为一拍（分母）
+  const unit = getBeatUnit(den);
+  // position 格式是 "bars:quarters:sixteenths"，第二字段是四分音符的浮点位置
+  // 拍单位 = 1/den 全音符 = 4/den 个四分音符
+  // 所以「第几拍」= floor(quarters * den / 4) % num
+  const quartersPerBeat = 4 / den;
+  metroRepeatId = Tone.Transport.scheduleRepeat((time) => {
+    const parts = Tone.Transport.position.split(':');
+    const quarters = parseFloat(parts[1]) + parseFloat(parts[2]) / 16;
+    let beat = Math.floor(quarters / quartersPerBeat) % num;
+    if(beat < 0) beat += num;
+    document.querySelectorAll('.beat-light').forEach((l, i) => {
+      l.classList.remove("active", "strong");
+      if(i === beat) l.classList.add(i === 0 ? "strong" : "active");
+    });
+    // 播放节拍器 click：第0拍（强拍 accent=true）
+    if(metroSound && typeof metroSound.playClick === "function"){
+      metroSound.playClick(0, time, beat === 0);
+    }
+  }, unit);
+}
+
+
+// ========== BPM拖拽 ==========
+// 拖拽状态（避免在闭包内定义的监听器无法被removeEventListener移除）
+let intDragState = null;  // { startY, direction, mousemoveHandler, mouseupHandler }
+let decDragState = null;
+
+function stopIntDrag(){
+  if(state.intDragTimer){
+    clearInterval(state.intDragTimer);
+    state.intDragTimer = null;
+  }
+  if(intDragState){
+    document.removeEventListener("mousemove", intDragState.mousemoveHandler);
+    document.removeEventListener("mouseup", intDragState.mouseupHandler);
+    intDragState = null;
+  }
+}
+
+function onIntMouseDown(e){
+  if(e.button !== 0) return;
+  e.preventDefault();
+  stopIntDrag(); // 防止重复按下残留
+  const startY = e.clientY;
+  let direction = 0;
+
+  const mousemoveHandler = function(ev){
+    const deltaY = startY - ev.clientY;
+    if(deltaY > 3) direction = 1;
+    else if(deltaY < -3) direction = -1;
+    else direction = 0;
+  };
+  const mouseupHandler = stopIntDrag;
+
+  state.intDragTimer = setInterval(()=>{
+    if(direction !== 0){
+      const cur = Tone.Transport.bpm.value;
+      setBpm(cur + direction * state.intDragStep);
+    }
+  }, 200);
+
+  document.addEventListener("mousemove", mousemoveHandler);
+  document.addEventListener("mouseup", mouseupHandler);
+  intDragState = { mousemoveHandler, mouseupHandler };
+}
+
+function stopDecDrag(){
+  if(state.decDragTimer){
+    clearInterval(state.decDragTimer);
+    state.decDragTimer = null;
+  }
+  if(decDragState){
+    document.removeEventListener("mousemove", decDragState.mousemoveHandler);
+    document.removeEventListener("mouseup", decDragState.mouseupHandler);
+    decDragState = null;
+  }
+}
+
+function onDecMouseDown(e){
+  if(e.button !== 0) return;
+  e.preventDefault();
+  stopDecDrag();
+  const startY = e.clientY;
+  let direction = 0;
+
+  const mousemoveHandler = function(ev){
+    const deltaY = startY - ev.clientY;
+    if(deltaY > 3) direction = 1;
+    else if(deltaY < -3) direction = -1;
+    else direction = 0;
+  };
+  const mouseupHandler = stopDecDrag;
+
+  state.decDragTimer = setInterval(()=>{
+    if(direction !== 0){
+      const cur = Tone.Transport.bpm.value;
+      setBpm(cur + direction * 0.01);
+    }
+  }, 200);
+
+  document.addEventListener("mousemove", mousemoveHandler);
+  document.addEventListener("mouseup", mouseupHandler);
+  decDragState = { mousemoveHandler, mouseupHandler };
+}
+
+// ========== 双击编辑BPM ==========
+function startBpmEdit(){
+  const currentBpm = Tone.Transport.bpm.value.toFixed(2);
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.className = "bpm-input";
+  input.value = currentBpm;
+  input.min = 20;
+  input.max = 300;
+  input.step = 0.01;
+
+  const group = $(".bpm-num-group");
+  group.innerHTML = "";
+  group.appendChild(input);
+  input.focus();
+  input.select();
+
+  function confirm(){
+    const val = parseFloat(input.value);
+    // 先重建DOM结构（确保#bpmInt/#bpmDec就位）
+    group.innerHTML =
+      '<span id="bpmInt"></span><span class="bpm-dot">.</span><span id="bpmDec"></span>';
+    bindBpmDragHandlers(); // 先绑事件保证后续可交互
+    if(!isNaN(val)){
+      setBpm(val); // setBpm 内处理范围限制 + updateBpmDisplay
+    }else{
+      updateBpmDisplay(); // 输入非法则还原显示
+    }
+  }
+
+  input.addEventListener("blur", confirm);
+  input.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") input.blur();
+    if(e.key === "Escape"){ input.value = currentBpm; input.blur(); }
+  });
+}
+
+// 绑定BPM显示区域的交互事件（初始化/编辑完成后都调用一次）
+function bindBpmDragHandlers(){
+  const intEl = document.getElementById("bpmInt");
+  const decEl = document.getElementById("bpmDec");
+  const groupEl = document.querySelector(".bpm-num-group");
+  if(intEl) intEl.addEventListener("mousedown", onIntMouseDown);
+  if(decEl) decEl.addEventListener("mousedown", onDecMouseDown);
+  if(groupEl){
+    groupEl.addEventListener("dblclick", startBpmEdit);
+    // 鼠标样式提示可操作
+    if(intEl) intEl.style.cursor = "ns-resize";
+    if(decEl) decEl.style.cursor = "ns-resize";
+    groupEl.style.cursor = "text";
+  }
+}
+
+
+function detectChord(map){
+  const notes = Array.from(map.keys()).sort((a,b) => a - b);
+  if(notes.length === 0) return { display:"无", notes:notes, isInversion:false };
+  if(notes.length === 1){
+    return { display: `${midiToNote(notes[0]).full}(单音)`, notes:notes, isInversion:false };
+  }
+  for(let root of notes){
+    const rootMod = root % 12;
+    const rel = notes.map(n => (n - rootMod + 12) % 12).sort((a,b) => a - b);
+    for(const [key, intervals] of Object.entries(CHORD_INTERVALS)){
+      if(intervals.length === rel.length && intervals.every((v,i) => v === rel[i])){
+        return {
+          display: midiToNote(root).name + CHORD_INFO[key].name,
+          notes: notes,
+          isInversion: root !== notes[0],
+          key: key
+        };
+      }
+    }
+  }
+  return { display: `Add(${notes.map(m => midiToNote(m).full).join(",")})`, notes:notes, isInversion:false };
+}
+
+function buildChord(rootIdx, octave, type){
+  const base = (octave + 1) * 12 + rootIdx;
+  return CHORD_INTERVALS[type].map(i => base + i).filter(m => m >= MIDI_MIN && m <= MIDI_MAX);
+}
+
+function updateScale(){
+  const intervals = SCALES[state.scaleType];
+  state.scaleNotes = new Set(intervals.map(s => (state.rootShift + s) % 12));
+  
+  const highlight = state.scaleType !== 'piano';
+  document.querySelectorAll('.white, .black').forEach(k => {
+    const midi = Number(k.dataset.midi);
+    k.classList.toggle('scale-key', highlight && state.scaleNotes.has(midi % 12));
+  });
+}
+
+function getMidiFromKey(code){
+  if(!KEY_MAP.hasOwnProperty(code)) return null;
+  const offset = KEY_MAP[code];
+  const midi = MIDDLE_C_MIDI + state.octaveShift * 12 + state.rootShift + offset;
+  if(midi < MIDI_MIN || midi > MIDI_MAX) return null;
+  if(state.scaleType !== 'piano' && !state.scaleNotes.has(midi % 12)) return null;
+  return midi;
+}
+
+function onKeyDown(e){
+  if(e.repeat) return;
+  const midi = getMidiFromKey(e.code);
+  if(midi === null) return;
+  if(keyPressed[e.code]) return;
+  keyPressed[e.code] = true;
+  triggerNoteOn(midi);
+}
+function onKeyUp(e){
+  const midi = getMidiFromKey(e.code);
+  if(midi === null) return;
+  keyPressed[e.code] = false;
+  triggerNoteOff(midi);
+}
+
+
+function renderKeyboard(){
+  const el = $("#keyboardEl");
+  el.innerHTML = "";
+  let whiteIdx = 0;
+  
+  for(let midi = MIDI_MIN; midi <= MIDI_MAX; midi++){
+    const div = document.createElement("div");
+    div.dataset.midi = midi;
+    
+    if(isBlackKey(midi)){
+      div.className = "black";
+      const left = whiteIdx * WHITE_KEY_BASE * keyScale - BLACK_KEY_BASE * keyScale / 2;
+      div.style.left = left + "px";
+    }else{
+      div.className = "white";
+      div.style.left = (whiteIdx * WHITE_KEY_BASE * keyScale) + "px";
+      whiteIdx++;
+    }
+    
+    const label = document.createElement("div");
+    label.className = "key-label";
+    div.appendChild(label);
+
+    div.addEventListener("mousedown", e => {
+      e.preventDefault();
+      isMouseDown = true;
+      triggerNoteOn(midi);
+    });
+    div.addEventListener("mouseup", e => {
+      e.preventDefault();
+      triggerNoteOff(midi);
+    });
+    div.addEventListener("mouseenter", () => {
+      if(state.mouseGlideEnabled && isMouseDown && !state.activeNotes.has(midi)){
+        triggerNoteOn(midi);
+      }
+    });
+    div.addEventListener("mouseleave", () => {
+      if(state.mouseGlideEnabled && isMouseDown){
+        triggerNoteOff(midi);
+      }
+    });
+
+    div.addEventListener("touchstart", e => {
+      e.preventDefault();
+      isMouseDown = true;
+      triggerNoteOn(midi);
+    });
+    div.addEventListener("touchend", e => {
+      e.preventDefault();
+      triggerNoteOff(midi);
+    });
+    
+    el.appendChild(div);
+  }
+  
+  whiteKeyCount = whiteIdx;
+  el.style.width = (whiteKeyCount * WHITE_KEY_BASE * keyScale) + "px";
+  updateKeyLabels();
+  updateScale();
+  updateNavViewport();
+}
+
+function updateKeyLabels(){
+  document.querySelectorAll("[data-midi]").forEach(k => {
+    const midi = Number(k.dataset.midi);
+    const label = k.querySelector(".key-label");
+    switch(state.noteLabelMode){
+      case "all": label.textContent = midiToNote(midi).full; break;
+      case "octaveOnly": label.textContent = midiToNote(midi).name === 'C' ? midiToNote(midi).full : ""; break;
+      case "off": label.textContent = ""; break;
+    }
+  });
+}
+
+function setKeyActive(midi, active){
+  const el = document.querySelector(`[data-midi="${midi}"]`);
+  if(el) el.classList.toggle("active", active);
+}
+
+
+async function initAudio(presetKey){
+  try{
+    await Tone.start();
+
+    if(synth){
+      synth.dispose();
+      synth = null;
+    }
+
+    // 初始化音量节点（只初始化一次）
+    if(!masterGain){
+      masterGain = new Tone.Gain(dbToLinear(uiSettings.masterVolumeDb));
+      masterGain.toDestination();
+    }
+    if(!metroGain){
+      metroGain = new Tone.Gain(dbToLinear(uiSettings.metroVolumeDb));
+    }
+    // 初始化效果链机架节点（只初始化一次）
+    if(typeof rebuildFxChain === "function"){
+      rebuildFxChain();
+    }
+    // 初始化/重建节拍器音色
+    if(!metroSound){
+      buildMetroSound(metroCurrentPreset.key || "ableton");
+    }
+
+    const preset = tonePresets[presetKey];
+
+    if(preset.type === 'sampler'){
+      synth = new Tone.Sampler(preset.urls);
+    }else{
+      synth = new Tone.Synth(preset);
+    }
+    // 音色 → AHDSR 包络 Gain → 总音量（AHDSR 旋钮直接控制采样音量）
+    if(!instEnvGain){
+      instEnvGain = new Tone.Gain(1);
+    }
+    synth.chain(instEnvGain, masterGain);
+    applySamplerADSR();
+
+    audioReady = true;
+    return true;
+  }catch(e){
+    try{
+      if(!masterGain){ masterGain = new Tone.Gain(1).toDestination(); }
+      if(!metroGain){  metroGain  = new Tone.Gain(1); }
+      if(!instEnvGain){ instEnvGain = new Tone.Gain(1); }
+      if(typeof rebuildFxChain === "function"){ rebuildFxChain(); }
+      if(!metroSound){ buildMetroSound(metroCurrentPreset.key || "ableton"); }
+      synth = new Tone.Synth(tonePresets.synth);
+      synth.chain(instEnvGain, masterGain);
+      audioReady = true;
+      return true;
+    }catch(e2){
+      audioReady = false;
+      return false;
+    }
+  }
+}
+
+// ============ AHDSR 音量自动化（挂在 instEnvGain 上，真正控制采样音量） ============
+// 按下：0 →(Attack)→ 1 →(Hold 保持)→ (Decay)→ Sustain 电平并保持
+function scheduleInstAttack(){
+  if(!instEnvGain) return;
+  const now = Tone.now();
+  const g = instEnvGain.gain;
+  const A = Math.max(0.001, metroEnv.attack);
+  const H = Math.max(0, metroEnv.hold);
+  const D = Math.max(0.001, metroEnv.decay);
+  const S = Math.max(0.0001, Math.min(1, metroEnv.sustain));
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(0.0001, now);
+  g.linearRampToValueAtTime(1, now + A);            // Attack 起音
+  if(H > 0) g.setValueAtTime(1, now + A + H);       // Hold 电平保持
+  g.linearRampToValueAtTime(S, now + A + H + D);    // Decay 衰减到 Sustain
+}
+// 松开：当前电平 →(Release)→ 0
+function scheduleInstRelease(){
+  if(!instEnvGain) return;
+  const now = Tone.now();
+  const g = instEnvGain.gain;
+  const R = Math.max(0.01, metroEnv.release);
+  let cur = 0.5;
+  try{ cur = Math.max(0.0001, g.value); }catch(e){}
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(cur, now);
+  g.linearRampToValueAtTime(0.0001, now + R);
+}
+
+async function triggerNoteOn(midi){
+  if(!audioReady){
+    await initAudio('piano');
+  }
+  if(state.activeNotes.has(midi)) return;
+
+  const freq = Tone.Midi(midi).toFrequency();
+  synth.triggerAttack(freq);
+  scheduleInstAttack(); // AHDSR：Attack→Hold→Decay→Sustain
+  state.activeNotes.set(midi, performance.now());
+  setKeyActive(midi, true);
+  updateChordDisplay();
+  updateIntervalDisplay();
+  if(state.staffEnabled) addStaffNote(midi);
+}
+
+function triggerNoteOff(midi){
+  if(!state.activeNotes.has(midi)) return;
+
+  const freq = Tone.Midi(midi).toFrequency();
+  // 只有松开"最后一个"按住的音时才做 AHDSR Release；
+  // 和弦中先松的音交给采样自身 release（防止共享包络把其他按住的音一起切掉）
+  if(state.activeNotes.size <= 1) scheduleInstRelease();
+  if(synth) synth.triggerRelease(freq);
+
+  const start = state.activeNotes.get(midi);
+  finalizeStaffNote(midi, performance.now() - start);
+
+  state.activeNotes.delete(midi);
+  setKeyActive(midi, false);
+  updateChordDisplay();
+  updateIntervalDisplay();
+}
+
+function stopAllNotes(){
+  state.activeNotes.forEach((start, midi) => {
+    finalizeStaffNote(midi, performance.now() - start);
+    triggerNoteOff(midi);
+  });
+}
+
+function updateChordDisplay(){
+  const res = detectChord(state.activeNotes);
+  $("#chordDisplay").textContent = `音名 / 和弦：${res.display}`;
+
+  if(res.key && CHORD_INFO[res.key]){
+    const info = CHORD_INFO[res.key];
+    const inv = res.isInversion ? " · 转位形式（最低音非根音）" : "";
+    $("#chordIntervalDisplay").innerHTML =
+      `构成：${info.stack}（${info.intervals.join(" → ")}）${inv}<br>` +
+      `<span class="chord-desc">${info.desc}</span>`;
+  }else{
+    $("#chordIntervalDisplay").textContent = "";
+  }
+}
+
+function updateIntervalDisplay(){
+  if(!state.intervalEnabled){
+    $("#intervalDisplay").textContent = "";
+    return;
+  }
+  const notes = Array.from(state.activeNotes.keys()).sort((a,b) => a - b);
+  if(notes.length === 2){
+    $("#intervalDisplay").textContent = `音程：${calcIntervalName(notes[0], notes[1])}`;
+  }else if(notes.length <= 1){
+    $("#intervalDisplay").textContent = "音程：无";
+  }else{
+    $("#intervalDisplay").textContent = `音程：多音（${notes.length}个）`;
+  }
+}
+
+
+function initStaff(){
+  staffCanvas = $("#staffCanvas");
+  staffCtx = staffCanvas.getContext("2d");
+  resizeStaff();
+  window.addEventListener('resize', resizeStaff);
+  requestAnimationFrame(renderStaff);
+}
+
+function resizeStaff(){
+  const box = staffCanvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  staffCanvas.width = box.clientWidth * dpr;
+  staffCanvas.height = 210 * dpr;
+  staffCtx.scale(dpr, dpr);
+}
+
+function getStaffInfo(){
+  const w = staffCanvas.clientWidth;
+  const gap = 20;
+  const single = (210 - gap) / 2;
+  const trebleTop = 10;
+  const bassTop = single + gap;
+  return {
+    w, trebleTop, bassTop,
+    trebleRef: trebleTop + 1 * STAFF_LINE_SPACE,
+    bassRef: bassTop + 3 * STAFF_LINE_SPACE
+  };
+}
+
+function midiToStaffPos(midi){
+  const { trebleRef, bassRef } = getStaffInfo();
+  const degree = getDiatonicDegree(midi);
+  if(midi >= MIDDLE_C_MIDI){
+    return { clef: 'treble', y: trebleRef - (degree - 32) * (STAFF_LINE_SPACE / 2) };
+  }else{
+    return { clef: 'bass', y: bassRef - (degree - 24) * (STAFF_LINE_SPACE / 2) };
+  }
+}
+
+function addStaffNote(midi){
+  const pos = midiToStaffPos(midi);
+  staffNotes.push({
+    midi, x: staffCanvas.clientWidth * 0.75, y: pos.y, clef: pos.clef,
+    accidental: getAccidental(midi),
+    startTime: performance.now(), active: true, value: null
+  });
+}
+
+function finalizeStaffNote(midi, duration){
+  for(let i = staffNotes.length - 1; i >= 0; i--){
+    if(staffNotes[i].midi === midi && staffNotes[i].active){
+      staffNotes[i].duration = duration;
+      staffNotes[i].active = false;
+      staffNotes[i].value = NOTE_VALUES.find(v => duration >= v.min) || NOTE_VALUES[NOTE_VALUES.length - 1];
+      break;
+    }
+  }
+}
+
+function drawStaffLines(){
+  const { w, trebleTop, bassTop, trebleRef, bassRef } = getStaffInfo();
+  staffCtx.strokeStyle = '#222';
+  staffCtx.lineWidth = 1;
+  
+  for(let i = 0; i < 5; i++){
+    staffCtx.beginPath();
+    staffCtx.moveTo(0, trebleTop + i * STAFF_LINE_SPACE);
+    staffCtx.lineTo(w, trebleTop + i * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+    
+    staffCtx.beginPath();
+    staffCtx.moveTo(0, bassTop + i * STAFF_LINE_SPACE);
+    staffCtx.lineTo(w, bassTop + i * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+  }
+  
+  staffCtx.font = '42px serif';
+  staffCtx.fillStyle = '#222';
+  staffCtx.textBaseline = 'middle';
+  staffCtx.fillText('𝄞', 4, trebleRef);
+  staffCtx.fillText('𝄢', 6, bassRef + 2);
+  
+  const num = $("#tsNumerator").value;
+  const den = $("#tsDenominator").value;
+  staffCtx.font = 'bold 16px sans-serif';
+  staffCtx.textAlign = 'center';
+  staffCtx.fillText(num, 42, trebleRef - STAFF_LINE_SPACE - 1);
+  staffCtx.fillText(den, 42, trebleRef + STAFF_LINE_SPACE + 1);
+  staffCtx.fillText(num, 42, bassRef - STAFF_LINE_SPACE - 1);
+  staffCtx.fillText(den, 42, bassRef + STAFF_LINE_SPACE + 1);
+  staffCtx.textAlign = 'left';
+}
+
+function drawBarLines(){
+  const { w, trebleTop, bassTop } = getStaffInfo();
+  const beats = parseInt($("#tsNumerator").value);
+  const barW = PIXELS_PER_BEAT * beats;
+  const offset = state.staffOffset % barW;
+  
+  staffCtx.strokeStyle = '#222';
+  staffCtx.lineWidth = 1.2;
+  
+  for(let x = w - offset; x > 60; x -= barW){
+    staffCtx.beginPath();
+    staffCtx.moveTo(x, trebleTop);
+    staffCtx.lineTo(x, trebleTop + 4 * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+    
+    staffCtx.beginPath();
+    staffCtx.moveTo(x, bassTop);
+    staffCtx.lineTo(x, bassTop + 4 * STAFF_LINE_SPACE);
+    staffCtx.stroke();
+  }
+}
+
+function drawNote(note){
+  staffCtx.save();
+  staffCtx.fillStyle = '#222';
+  staffCtx.strokeStyle = '#222';
+  
+  const { trebleTop, bassTop } = getStaffInfo();
+  const midY = note.clef === 'treble' ? trebleTop + 2 * STAFF_LINE_SPACE : bassTop + 2 * STAFF_LINE_SPACE;
+  const up = note.y < midY;
+  const sx = up ? note.x + NOTE_HEAD_W - 1 : note.x - NOTE_HEAD_W + 1;
+  const sy2 = up ? note.y - STEM_LEN : note.y + STEM_LEN;
+
+  if(note.accidental){
+    staffCtx.font = '13px serif';
+    staffCtx.textBaseline = 'middle';
+    staffCtx.fillText(note.accidental, note.x - NOTE_HEAD_W - 10, note.y);
+  }
+
+  staffCtx.beginPath();
+  const filled = note.value ? note.value.filled : true;
+  if(filled){
+    staffCtx.ellipse(note.x, note.y, NOTE_HEAD_W, NOTE_HEAD_H, -0.25, 0, Math.PI * 2);
+    staffCtx.fill();
+  }else{
+    staffCtx.ellipse(note.x, note.y, NOTE_HEAD_W, NOTE_HEAD_H, -0.25, 0, Math.PI * 2);
+    staffCtx.stroke();
+  }
+
+  const hasStem = note.value ? note.value.stem : true;
+  if(hasStem){
+    staffCtx.beginPath();
+    staffCtx.moveTo(sx, note.y);
+    staffCtx.lineTo(sx, sy2);
+    staffCtx.lineWidth = 1.5;
+    staffCtx.stroke();
+  }
+
+  staffCtx.restore();
+}
+
+function renderStaff(){
+  if(!state.staffEnabled){
+    requestAnimationFrame(renderStaff);
+    return;
+  }
+  const { w } = getStaffInfo();
+  staffCtx.clearRect(0, 0, w, 210);
+
+  drawStaffLines();
+  drawBarLines();
+
+  chordStaffNotes.forEach(n => drawNote(n));
+
+  for(let i = staffNotes.length - 1; i >= 0; i--){
+    staffNotes[i].x -= 0.8;
+    if(staffNotes[i].x < -40){
+      staffNotes.splice(i, 1);
+      continue;
+    }
+    drawNote(staffNotes[i]);
+  }
+
+  if(state.isPlaying){
+    const bpm = Tone.Transport.bpm.value;
+    state.staffOffset += (bpm / 60) * PIXELS_PER_BEAT / 60;
+  }
+
+  requestAnimationFrame(renderStaff);
+}
+
+
+async function togglePlay(){
+  if(state.isPlaying){
+    Tone.Transport.pause();
+    $("#playBtn").textContent = "▶";
+    state.isPlaying = false;
+    scheduleBeatLightsOff(3000); // 暂停后3秒自动熄灭指示灯
+  }else{
+    // 重新播放时取消尚未执行的熄灭定时器（防止刚启动就被熄灭）
+    clearBeatLightsFadeTimer();
+    // 确保音频上下文和节拍器合成器已初始化
+    // ⚠️注意：声音设计系统重构后，节拍器音色对象是 metroSound（不是旧的 metronomeSynth）
+    if(!audioReady || !metroSound || !metroSound.playClick){
+      await initAudio($("#toneSelect").value || 'piano');
+    }
+    await Tone.start();
+    Tone.Transport.start();
+    $("#playBtn").textContent = "⏸";
+    state.isPlaying = true;
+  }
+}
+
+function stopMetro(){
+  Tone.Transport.stop();
+  $("#playBtn").textContent = "▶";
+  state.isPlaying = false;
+  state.staffOffset = 0;
+  scheduleBeatLightsOff(3000); // 停止后3秒自动熄灭指示灯
+}
+
+
+function updateNavViewport(){
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+  const view = keyboardWrap.clientWidth;
+  const scroll = keyboardWrap.scrollLeft;
+  const navW = keyboardNav.clientWidth;
+  navViewport.style.width = Math.max(view / total * navW, 30) + 'px';
+  navViewport.style.left = (scroll / total * navW) + 'px';
+}
+
+function onNavDown(e){
+  e.preventDefault();
+  e.stopPropagation();
+  const target = e.target;
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(target.classList.contains('nav-handle-left')){
+    navState.mode = 'resizeLeft';
+    navState.startX = e.clientX;
+    navState.startScale = keyScale;
+    navState.startRight = keyboardWrap.scrollLeft + keyboardWrap.clientWidth;
+  }else if(target.classList.contains('nav-handle-right')){
+    navState.mode = 'resizeRight';
+    navState.startX = e.clientX;
+    navState.startScale = keyScale;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }else{
+    navState.mode = 'move';
+    navState.startX = e.clientX;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }
+
+  document.addEventListener("mousemove", onNavMove);
+  document.addEventListener("mouseup", stopNav);
+}
+
+function onNavMove(e){
+  if(!navState.mode) return;
+  e.preventDefault();
+  const dx = e.clientX - navState.startX;
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(navState.mode === 'move'){
+    keyboardWrap.scrollLeft = navState.startScrollLeft + dx / navW * total;
+    updateNavViewport();
+  }else if(navState.mode === 'resizeLeft'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 - ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startRight - keyboardWrap.clientWidth;
+      updateNavViewport();
+    }
+  }else if(navState.mode === 'resizeRight'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 + ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startScrollLeft;
+      updateNavViewport();
+    }
+  }
+}
+
+function stopNav(){
+  navState.mode = null;
+  document.removeEventListener("mousemove", onNavMove);
+  document.removeEventListener("mouseup", stopNav);
+}
+
+// 触摸版导航条控制
+function onNavTouchStart(e){
+  // 双指落在导航条上 → 交给 keyboardNav 的捏合缩放处理（不拦截，让事件冒泡）
+  if(e.touches.length >= 2) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const touch = e.touches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(target.classList.contains('nav-handle-left')){
+    navState.mode = 'resizeLeft';
+    navState.startX = touch.clientX;
+    navState.startScale = keyScale;
+    navState.startRight = keyboardWrap.scrollLeft + keyboardWrap.clientWidth;
+  }else if(target.classList.contains('nav-handle-right')){
+    navState.mode = 'resizeRight';
+    navState.startX = touch.clientX;
+    navState.startScale = keyScale;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }else{
+    navState.mode = 'move';
+    navState.startX = touch.clientX;
+    navState.startScrollLeft = keyboardWrap.scrollLeft;
+  }
+
+  document.addEventListener("touchmove", onNavTouchMove, { passive: false });
+  document.addEventListener("touchend", stopNavTouch);
+}
+
+function onNavTouchMove(e){
+  if(!navState.mode) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const dx = touch.clientX - navState.startX;
+  const navW = keyboardNav.clientWidth;
+  const total = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+
+  if(navState.mode === 'move'){
+    keyboardWrap.scrollLeft = navState.startScrollLeft + dx / navW * total;
+    updateNavViewport();
+  }else if(navState.mode === 'resizeLeft'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 - ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startRight - keyboardWrap.clientWidth;
+      updateNavViewport();
+    }
+  }else if(navState.mode === 'resizeRight'){
+    const ratio = dx / navW;
+    const newScale = navState.startScale / (1 + ratio);
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+    if(clamped !== keyScale){
+      keyScale = clamped;
+      document.documentElement.style.setProperty('--key-scale', keyScale);
+      renderKeyboard();
+      $("#keyScaleSlider").value = keyScale;
+      keyboardWrap.scrollLeft = navState.startScrollLeft;
+      updateNavViewport();
+    }
+  }
+}
+
+function stopNavTouch(){
+  navState.mode = null;
+  document.removeEventListener("touchmove", onNavTouchMove);
+  document.removeEventListener("touchend", stopNavTouch);
+}
+
+
+function setKeyScale(newScale, centerRatio = null){
+  newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+  if(newScale === keyScale) return;
+
+  const old = keyScale;
+  const wrapW = keyboardWrap.clientWidth;
+  const scroll = keyboardWrap.scrollLeft;
+
+  if(centerRatio === null){
+    centerRatio = (scroll + wrapW / 2) / (whiteKeyCount * WHITE_KEY_BASE * old);
+  }
+
+  keyScale = newScale;
+  document.documentElement.style.setProperty('--key-scale', keyScale);
+  renderKeyboard();
+  $("#keyScaleSlider").value = keyScale;
+
+  const newTotal = whiteKeyCount * WHITE_KEY_BASE * keyScale;
+  keyboardWrap.scrollLeft = centerRatio * newTotal - wrapW / 2;
+  updateNavViewport();
+}
+
+function autoFit(centerC = false){
+  const wrapW = keyboardWrap.clientWidth - 20;
+  const isMobile = window.innerWidth < 700;
+  const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+
+  // 竖屏显示更少的琴键，保证好按
+  let targetWhiteKeys = isMobile ? (isPortrait ? 5 : 6) : 8;
+  const targetWidth = targetWhiteKeys * WHITE_KEY_BASE;
+  const initScale = wrapW / targetWidth;
+
+  setKeyScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, initScale)));
+
+  // 手机竖屏：默认把琴键区域定位到中央C（C4, midi=60）居中
+  if(centerC && isMobile && isPortrait){
+    const cKey = $("#keyboardEl").querySelector('.white[data-midi="60"]');
+    if(cKey){
+      keyboardWrap.scrollLeft = cKey.offsetLeft - (keyboardWrap.clientWidth - cKey.offsetWidth) / 2;
+      updateNavViewport();
+    }
+  }
+}
+
+
+async function setupMidi(){
+  if(!navigator.requestMIDIAccess){
+    $("#midiStatus").textContent = "浏览器不支持WebMIDI";
+    return;
+  }
+  try{
+    state.midiAccess = await navigator.requestMIDIAccess({sysex:false});
+    $("#midiStatus").textContent = "MIDI已就绪";
+    fillMidiList();
+    state.midiAccess.onstatechange = fillMidiList;
+  }catch(e){
+    $("#midiStatus").textContent = "MIDI权限被拒绝";
+  }
+}
+
+function fillMidiList(){
+  const sel = $("#midiDeviceSelect");
+  sel.innerHTML = "<option value=''>请选择MIDI输入</option>";
+  if(!state.midiAccess) return;
+  
+  for(const input of state.midiAccess.inputs.values()){
+    const opt = document.createElement("option");
+    opt.value = input.id;
+    opt.textContent = input.name;
+    sel.appendChild(opt);
+  }
+
+  const inputs = Array.from(state.midiAccess.inputs.values());
+  if(inputs.length > 0){
+    sel.value = inputs[0].id;
+    attachMidi(inputs[0].id);
+  }
+}
+
+function attachMidi(id){
+  if(!state.midiAccess) return;
+  if(state.selectedMidiDevice){
+    state.selectedMidiDevice.onmidimessage = null;
+  }
+  const input = state.midiAccess.inputs.get(id);
+  if(!input) return;
+  state.selectedMidiDevice = input;
+  input.onmidimessage = (evt) => {
+    const [s, note, vel] = evt.data;
+    const cmd = s >> 4;
+    if(cmd === 9 && vel > 0) triggerNoteOn(note);
+    else if(cmd === 8 || (cmd === 9 && vel === 0)) triggerNoteOff(note);
+  };
+  $("#midiStatus").textContent = `✅已连接：${input.name}`;
+}
+
+
+function openSettings(){
+  $("#settingModalWrap").classList.add('active');
+  document.body.classList.add('modal-open');
+  // 弹窗 display:block 之后再同步 UI+尺寸，尤其避免 ADSR canvas 宽高为 0
+  if(typeof initSoundDesignUI === "function"){
+    setTimeout(() => initSoundDesignUI(), 30);
+  }
+}
+function closeSettings(){
+  $("#settingModalWrap").classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+
+document.addEventListener('mouseup', () => {
+  isMouseDown = false;
+  stopAllNotes();
+});
+document.addEventListener('touchend', () => {
+  isMouseDown = false;
+  stopAllNotes();
+});
+
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
+
+window.addEventListener('resize', () => autoFit());
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  renderKeyboard();
+  applyTheme("system");
+  initStaff();
+  setBpm(120);
+  Tone.Transport.timeSignature = [4, 4];
+  renderBeatIndicators(4);   // 初始4个指示灯
+  rebuildMetroRepeat();      // 注册节拍循环
+  
+  bindEvents();
+
+  initAudio('piano').catch(() => {});
+
+  setupMidi();
+  autoFit(true); // 手机竖屏时默认定位到中央C区域
+  bindBpmDragHandlers(); // 绑定BPM整数/小数位拖拽+双击编辑
+
+  // ====== 声音设计系统初始化（节拍器音色/ADSR/效果/音量） ======
+  if(typeof initSoundDesignUI === "function"){
+    initSoundDesignUI();
+  }
+});
+
+
+function bindEvents(){
+  $("#playBtn").addEventListener("click", togglePlay);
+  $("#stopBtn").addEventListener("click", stopMetro);
+  $("#bpmUp").addEventListener("click", () => setBpm(Tone.Transport.bpm.value + 1));
+  $("#bpmDown").addEventListener("click", () => setBpm(Tone.Transport.bpm.value - 1));
+
+  // Tap Tempo 功能
+  $("#tapBtn").addEventListener("click", () => {
+    const now = performance.now();
+    // 清空超过2秒的旧点击记录
+    state.tapTimes = state.tapTimes.filter(t => now - t < 2000);
+    state.tapTimes.push(now);
+    // 至少需要2次点击才能计算BPM
+    if(state.tapTimes.length >= 2){
+      const intervals = [];
+      for(let i = 1; i < state.tapTimes.length; i++){
+        intervals.push(state.tapTimes[i] - state.tapTimes[i-1]);
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const newBpm = Math.round(60000 / avgInterval); // 只取整数部分
+      setBpm(newBpm);
+    }
+  });
+
+  function updateTimeSignature(){
+    const num = parseInt($("#tsNumerator").value);
+    const den = parseInt($("#tsDenominator").value);
+    const wasPlaying = state.isPlaying;
+    // 停止并重置位置到0，避免旧position的quarters导致新拍号下错位
+    Tone.Transport.stop();
+    state.isPlaying = false;
+    state.staffOffset = 0;
+    $("#playBtn").textContent = "▶";
+    Tone.Transport.timeSignature = [num, den]; // Tone.js v14 接受 [分子, 分母]
+    renderBeatIndicators(num);    // 更新指示灯数量
+    rebuildMetroRepeat();         // 重新注册循环（更新间隔单位）
+    if(wasPlaying){
+      // 重置位置后重新启动 → 此时不应调度灯光熄灭
+      clearBeatLightsFadeTimer();
+      Tone.Transport.start();
+      $("#playBtn").textContent = "⏸";
+      state.isPlaying = true;
+    }else{
+      // 如果本来就没有播放 → 3秒后熄灭旧状态残留的灯光
+      extinguishBeatLights(); // 直接熄灭更合适，因为新的数量/状态已经重建
+    }
+  }
+  $("#tsNumerator").addEventListener("change", updateTimeSignature);
+  $("#tsDenominator").addEventListener("change", updateTimeSignature);
+  
+  $("#noteLabelMode").addEventListener("change", e => {
+    state.noteLabelMode = e.target.value;
+    updateKeyLabels();
+  });
+  $("#themeSetting").addEventListener("change", e => {
+    state.themeMode = e.target.value;
+    applyTheme(state.themeMode);
+  });
+  $("#mouseGlideSetting").addEventListener("change", e => {
+    state.mouseGlideEnabled = e.target.value === "on";
+  });
+  $("#staffDisplaySetting").addEventListener("change", e => {
+    state.staffEnabled = e.target.value === "on";
+    $("#staffBox").classList.toggle("hidden", !state.staffEnabled);
+  });
+  $("#intervalDisplaySetting").addEventListener("change", e => {
+    state.intervalEnabled = e.target.value === "on";
+    updateIntervalDisplay();
+  });
+  $("#chordShowSoundSetting").addEventListener("change", e => {
+    state.chordShowSound = e.target.value === "on";
+  });
+
+  $("#keyScaleSlider").addEventListener('input', e => setKeyScale(parseFloat(e.target.value)));
+
+  $("#rootNoteSelect").addEventListener("change", e => {
+    state.rootShift = parseInt(e.target.value);
+    updateScale();
+  });
+  $("#octaveSelect").addEventListener("change", e => {
+    state.octaveShift = parseInt(e.target.value) - 4;
+    updateScale();
+  });
+  $("#scaleSelect").addEventListener("change", e => {
+    state.scaleType = e.target.value;
+    updateScale();
+  });
+
+  $("#toneSelect").addEventListener("change", async e => {
+    await initAudio(e.target.value);
+  });
+  
+  $("#midiDeviceSelect").addEventListener("change", e => attachMidi(e.target.value));
+  $("#refreshMidiBtn").addEventListener("click", setupMidi);
+
+  $("#themeBtn").addEventListener("click", () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    applyTheme(cur === "dark" ? "light" : "dark");
+  });
+
+  $("#settingBtn").addEventListener("click", openSettings);
+  $("#modalClose").addEventListener("click", closeSettings);
+  $("#settingModalWrap").addEventListener("click", e => {
+    if(e.target.id === "settingModalWrap") closeSettings();
+  });
+
+  // 导航条：鼠标+触摸
+  navViewport.addEventListener("mousedown", onNavDown);
+  navViewport.addEventListener("touchstart", onNavTouchStart, { passive: false });
+  keyboardWrap.addEventListener("scroll", updateNavViewport);
+
+  // ===== 双指捏合缩放：直接在琴键上方的导航条（keyboardNav）上进行 =====
+  let pinchState = { active:false, startDist:0, startScale:1, centerRatio:0 };
+
+  function getTouchDist(touches){
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  keyboardNav.addEventListener("touchstart", e => {
+    if(e.touches.length !== 2) return;
+    e.preventDefault();
+    stopNavTouch(); // 若单指正在拖动导航，先取消
+    const rect = keyboardWrap.getBoundingClientRect();
+    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+    pinchState = {
+      active: true,
+      startDist: getTouchDist(e.touches),
+      startScale: keyScale,
+      centerRatio: (keyboardWrap.scrollLeft + centerX) / (whiteKeyCount * WHITE_KEY_BASE * keyScale)
+    };
+  }, { passive: false });
+
+  keyboardNav.addEventListener("touchmove", e => {
+    if(!pinchState.active || e.touches.length !== 2) return;
+    e.preventDefault();
+    const ratio = getTouchDist(e.touches) / pinchState.startDist;
+    setKeyScale(pinchState.startScale * ratio, pinchState.centerRatio);
+  }, { passive: false });
+
+  keyboardNav.addEventListener("touchend", e => {
+    if(e.touches.length < 2) pinchState.active = false;
+  });
+
+  // PC 上鼠标滚轮在导航条上也能缩放
+  keyboardNav.addEventListener("wheel", e => {
+    e.preventDefault();
+    const centerRatio = (keyboardWrap.scrollLeft + keyboardWrap.clientWidth / 2) / (whiteKeyCount * WHITE_KEY_BASE * keyScale);
+    setKeyScale(keyScale * (e.deltaY < 0 ? 1.08 : 0.925), centerRatio);
+  }, { passive: false });
+
+  // 和弦查询
+  const chordRoot = $("#chordRoot");
+  NOTE_NAMES.forEach((n, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = n;
+    chordRoot.appendChild(opt);
+  });
+  const chordOct = $("#chordOctave");
+  for(let o = 0; o <= 8; o++){
+    const opt = document.createElement("option");
+    opt.value = o;
+    opt.textContent = o;
+    chordOct.appendChild(opt);
+  }
+  chordRoot.value = 0;
+  chordOct.value = 4;
+
+  // ============================================================
+  // 和弦指法显示 / 取消显示（toggle）
+  // ============================================================
+  // 清除：高亮 + 说明文字 + 和弦乐谱音符 + 状态
+  function clearChordDisplay(){
+    document.querySelectorAll('.chord-highlight').forEach(el => el.classList.remove('chord-highlight'));
+    const info = $("#chordInfoBar");
+    if(info){ info.classList.remove("active"); info.innerHTML = ""; }
+    chordStaffNotes = [];
+    state.chordDisplayState = null;
+    $("#showChordBtn").textContent = "显示和弦指法";
+  }
+
+  // 渲染：高亮 + 说明文字 + 和弦乐谱音符
+  function renderChordDisplay(rootIdx, type, oct){
+    const list = buildChord(rootIdx, oct, type);
+
+    // 1) 高亮琴键
+    document.querySelectorAll('.chord-highlight').forEach(el => el.classList.remove('chord-highlight'));
+    list.forEach(midi => {
+      const el = document.querySelector(`[data-midi="${midi}"]`);
+      if(el) el.classList.add('chord-highlight');
+    });
+
+    // 2) 文字说明
+    const rootNote = NOTE_NAMES[rootIdx];
+    const info = CHORD_INFO[type];
+    const noteNames = list.map(m => midiToNote(m).full).join(" - ");
+    const bar = $("#chordInfoBar");
+    if(bar){
+      bar.innerHTML =
+        `<div class="ch-title">${rootNote}${info.name}（${oct}组）</div>` +
+        `<div class="ch-stack">构成：${info.stack}（${info.intervals.join(" → ")}）</div>` +
+        `<div class="ch-notes">组成音：${noteNames}</div>` +
+        `<div class="ch-desc">${info.desc}</div>`;
+      bar.classList.add("active");
+    }
+
+    // 3) 和弦乐谱音符（常驻，不再 2.5s 后清除）
+    if(state.staffEnabled){
+      chordStaffNotes = list.map(midi => {
+        const pos = midiToStaffPos(midi);
+        return { midi, x: staffCanvas.clientWidth * 0.5, y: pos.y, clef: pos.clef, accidental: getAccidental(midi) };
+      });
+    }
+
+    state.chordDisplayState = { rootIdx, type, oct, list };
+    $("#showChordBtn").textContent = "取消和弦指法";
+  }
+
+  // 播放和弦（AHDSR 包络 + Sampler/Synth 发声，2.5s 后 release）
+  let chordReleaseTimer = null;
+  function playChordSound(list){
+    if(!audioReady || !state.chordShowSound) return;
+    if(chordReleaseTimer){ clearTimeout(chordReleaseTimer); chordReleaseTimer = null; }
+    // 先松开前一次和弦遗留的音
+    list.forEach(midi => synth.triggerRelease(Tone.Midi(midi).toFrequency()));
+    // AHDSR：Attack→Hold→Decay→Sustain
+    scheduleInstAttack();
+    list.forEach(midi => synth.triggerAttack(Tone.Midi(midi).toFrequency()));
+    chordReleaseTimer = setTimeout(() => {
+      list.forEach(midi => synth.triggerRelease(Tone.Midi(midi).toFrequency()));
+      scheduleInstRelease();
+      chordReleaseTimer = null;
+    }, 2500);
+  }
+
+  $("#showChordBtn").addEventListener("click", async () => {
+    const rootIdx = parseInt($("#chordRoot").value);
+    const type = $("#chordType").value;
+    const oct = parseInt($("#chordOctave").value);
+    const s = state.chordDisplayState;
+
+    // 若当前已激活并与当前参数相同 → 取消
+    if(s && s.rootIdx === rootIdx && s.type === type && s.oct === oct){
+      clearChordDisplay();
+      return;
+    }
+
+    // 首次或参数有变化 → 显示
+    // 确保音频已启动（用户未点任意键时可能还未 Tone.start）
+    if(!audioReady){ await initAudio( $("#toneSelect").value || 'piano' ); }
+
+    renderChordDisplay(rootIdx, type, oct);
+    playChordSound(state.chordDisplayState.list);
+  });
+
+  // 切换根音/类型/八度时：若当前已激活，自动更新高亮+文字（不出声）
+  function onChordParamChange(){
+    if(!state.chordDisplayState) return;
+    const rootIdx = parseInt($("#chordRoot").value);
+    const type = $("#chordType").value;
+    const oct = parseInt($("#chordOctave").value);
+    renderChordDisplay(rootIdx, type, oct);
+  }
+  $("#chordRoot").addEventListener("change", onChordParamChange);
+  $("#chordType").addEventListener("change", onChordParamChange);
+  $("#chordOctave").addEventListener("change", onChordParamChange);
+
+  // ==============================================================
+  // 🔊 声音设计子系统事件绑定 （节拍器 音量/音色/ADSR/效果）
+  // ==============================================================
+
+  // ---- 1) 音量滑块 (dB) ----
+  const metroVolSlider = $("#metroVolumeSlider");
+  if(metroVolSlider){
+    metroVolSlider.addEventListener("input", e => {
+      const db = parseFloat(e.target.value);
+      uiSettings.metroVolumeDb = db;
+      setMetroVolume(db);
+    });
+  }
+  const masterVolSlider = $("#masterVolumeSlider");
+  if(masterVolSlider){
+    masterVolSlider.addEventListener("input", e => {
+      const db = parseFloat(e.target.value);
+      uiSettings.masterVolumeDb = db;
+      setMasterVolume(db);
+    });
+  }
+
+  // ---- 2) 节拍器音色下拉 ----
+  const metroToneSel = $("#metroToneSelect");
+  if(metroToneSel){
+    metroToneSel.addEventListener("change", async e => {
+      // 确保音频上下文已启动 + 效果链已建
+      if(!audioReady || !masterGain){
+        try{ await initAudio(($("#toneSelect")||{}).value || 'piano'); }catch(_){}
+      }
+      if(masterGain && metroGain && fxRack.length >= 0){
+        buildMetroSound(e.target.value);
+      }
+    });
+  }
+
+  // ---- 3) ADSR + Hold 5 旋钮 ----
+  const adsrIds = ["adsrAttack","adsrHold","adsrDecay","adsrSustain","adsrRelease"];
+  adsrIds.forEach(id => {
+    const el = $("#"+id);
+    if(el) el.addEventListener("input", () => { if(typeof updateAdsrFromUI==="function") updateAdsrFromUI(); });
+  });
+
+  // ---- 4) ADSR 图形显示开关 ----
+  const adsrCanvasToggle = $("#adsrCanvasToggle");
+  const adsrEnvWrap = $("#adsrEnvWrap");
+  if(adsrCanvasToggle && adsrEnvWrap){
+    adsrCanvasToggle.addEventListener("change", e => {
+      uiSettings.adsrPanelExpanded = !!e.target.checked;
+      if(uiSettings.adsrPanelExpanded){
+        adsrEnvWrap.style.display = "flex";
+        // 显示后下一帧重绘 canvas（避免 display:none 时宽度为 0 导致图形错位）
+        requestAnimationFrame(() => { if(typeof drawAdsrEnv==="function") drawAdsrEnv(); });
+      }else{
+        adsrEnvWrap.style.display = "none";
+      }
+    });
+  }
+
+  // ---- 5) 效果器机架：添加效果（单元卡片内控件事件在 renderFxRack 中动态绑定）
+  const fxAddBtn = $("#fxAddBtn");
+  const fxAddSelect = $("#fxAddSelect");
+  if(fxAddBtn && fxAddSelect){
+    fxAddBtn.addEventListener("click", () => {
+      const t = fxAddSelect.value;
+      if(t) addFxUnit(t);
+    });
+  }
+
+  // ---- 6) 重置按钮：机架回默认 + ADSR回默认 + 重绘
+  const fxResetBtn = $("#fxResetBtn");
+  if(fxResetBtn){
+    fxResetBtn.addEventListener("click", () => {
+      resetFxRack(); // 机架恢复默认 Filter+Compressor，并重建信号链 + DOM
+      // ADSR 回默认值并重绘
+      ["#adsrAttack", "#adsrHold", "#adsrDecay", "#adsrSustain", "#adsrRelease"].forEach(sel => {
+        const el = document.querySelector(sel);
+        if(el){
+          const def = parseFloat(el.getAttribute("value"));
+          if(!isNaN(def)) el.value = def;
+        }
+      });
+      if(typeof updateAdsrFromUI==="function") updateAdsrFromUI();
+      // 图形显示开关重置为开启
+      const tg = document.querySelector("#adsrCanvasToggle");
+      if(tg){ tg.checked = true; tg.dispatchEvent(new Event("change")); }
+    });
+  }
+}
+
+function applyTheme(mode){
+  if(mode === "system"){
+    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    $("#themeBtn").textContent = dark ? "☀️" : "🌙";
+  }else{
+    document.documentElement.setAttribute("data-theme", mode);
+    $("#themeBtn").textContent = mode === "dark" ? "☀️" : "🌙";
+  }
+}
+</script>
+</body>
+</html>
